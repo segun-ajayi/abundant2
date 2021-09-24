@@ -1,0 +1,10 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@import './coreui-icons.min.css';
+@import './font-awesome.min.css';
+@import './style.css';
+@import './pace.css';
+@import './toastr.css';
+@import './simple-line-icons.css';
