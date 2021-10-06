@@ -348,6 +348,9 @@ class Member extends Model
     }
 
     public function creditLoan($loan, $interest, $mode) {
+        if (!$interest) {
+            $interest = 0;
+        }
         $loans = $this->loans()->where('status', 1)->get();
         if ($loans->isEmpty()) {
             return;

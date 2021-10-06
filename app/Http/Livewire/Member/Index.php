@@ -30,7 +30,6 @@ class Index extends Component
     }
 
     public function refreshComponents() {
-        dd('dfdfs');
         $this->emit('refreshComponents', $this->member);
     }
 
@@ -235,14 +234,14 @@ class Index extends Component
                     $this->emit('toast', 'err', 'Special savings insufficient');
                     return;
                 }
-                $this->member->debitSpecial($amount, "Loan Repayment");
+//                $this->member->debitSpecial($amount, "Loan Repayment");
             }
             if ($this->payMethod == 'savings') {
                 if ($this->member->getsaving() < $total) {
                     $this->emit('toast', 'err', 'Savings insufficient');
                     return;
                 }
-                $this->member->debitSavings($amount, "Loan Repayment");
+//                $this->member->debitSavings($amount, "Loan Repayment");
             }
             if ($amount > $lo) {
                 $am = $amount - $lo;
