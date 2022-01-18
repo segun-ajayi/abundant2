@@ -115,6 +115,7 @@
                                     @endif
                                     <div class="text-value">₦ {{ number_format($member->getLoan(), 2, '.', ',') }}</div>
                                     <div>Current Loan</div>
+                                    <div>₦ {{ number_format($this->member->getAccumulatedInterest(), 2, '.', ',') }} Acc. Interest</div>
                                     @if($member->getLoan())
                                         <div class="progress progress-xs my-2">
                                             <div class="progress-bar bg-info" role="progressbar" style="width: {{ $member->loanPercent() }}%" aria-valuenow="{{ $member->loanPercent() }}" aria-valuemin="0" aria-valuemax="100"></div>

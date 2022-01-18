@@ -36,8 +36,8 @@ class ReportController extends Controller
         $members = Member::all();
 
 //        dd($members->where('member_id', 108)->load('loans'));
-        if ($request->item != 'year') {
-
+        if ($request->item === 'month') {
+            $ret = 'month';
             foreach ($members as $member) {
                 if ($member->savings) {
                     $savingsC = $member->savings->history->whereBetween('date', [$start, $end])->sum('credit');
@@ -126,90 +126,33 @@ class ReportController extends Controller
                 }
             }
             Storage::disk('backup')->copy('database.sqlite', $filename);
-            return view('admin.monthlyReport2', compact('members'));
+            return view('admin.monthlyReport2', compact('members', 'ret'));
         } else {
-            $d = Member::where('member_id', 139)->first();
+            $ret = 'year';
+            $year = $request->item;
+//            $date = Carbon::createFromFormat('Y-m-d H:i:s', $d);
+//            $start = $date->copy()->startOfYear();
+//            $end = $date->copy()->endOfYear();
 
             foreach ($members as $member) {
-                if ($member->savings) {
-                    $savingsC = $member->savings->history->whereBetween('date', [$start, $end])->sum('credit');
-                    $savingsD = $member->savings->history->whereBetween('date', [$start, $end])->sum('debit');
-                } else {
-                    $savingsD = 0;
-                    $savingsC = 0;
-                }
-                if ($member->share) {
-                    $shareC = $member->share->history->sum('credit');
-                    $shareD = $member->share->history->sum('debit');
-                } else {
-                    $shareD = 0;
-                    $shareC = 0;
-                }
-                if ($member->specialSavings) {
-                    $specialC = $member->specialSavings->history->whereBetween('date', [$start, $end])->sum('credit');
-                    $specialD = $member->specialSavings->history->whereBetween('date', [$start, $end])->sum('debit');
-                } else {
-                    $specialD = 0;
-                    $specialC = 0;
-                }
-                if ($member->building) {
-                    $buildingC = $member->building->history->whereBetween('date', [$start, $end])->sum('credit');
-                    $buildingD = $member->building->history->whereBetween('date', [$start, $end])->sum('debit');
-                } else {
-                    $buildingD = 0;
-                    $buildingC = 0;
-                }
-                if (!$member->loans->isEmpty()) {
-                    $cre = 0;
-                    $int = 0;
-                    $appLoan = $member->loans->whereBetween('approved_on', [$start, $end])->sum('amount');
-                    if ($appLoan) {
-                        $appLoan = $appLoan * -1;
-                    } else {
-                        $appLoan = 0;
-                    }
-                    $loan = $member->loans;
-                    if ($loan->count() > 0) {
-                        foreach ($loan as $item) {
-                            $cre = $cre + $item->repayments->whereBetween('date', [$start, $end])->sum('credit');
-                            $int = $int + $item->repayments->whereBetween('date', [$start, $end])->sum('interest');
-                        }
-                    }
-                } else {
-                    $cre = 0;
-                    $int = 0;
-                    $appLoan = 0;
-                }
-                if (!$member->fines->isEmpty()) {
-//                dd($member->fines);
-                    $fines = $member->fines->whereBetween('date', [$start, $end])->sum('credit');
-//                dd($fines);
-                } else {
-                    $fines = 0;
-                }
-                if (!$member->utilities->isEmpty()) {
-                    $util = $member->utilities->whereBetween('date', [$start, $end])->sum('amount');
-                } else {
-                    $util = 0;
-                }
-                $member->savingsM = $savingsC - $savingsD;
-                $member->shareM = $shareC - $shareD;
-                $member->specialM = $specialC - $specialD;
-                $member->buildingM = $buildingC - $buildingD;
-                $member->loanRepay = $cre;
+                $member->tSavings = $member->getSaving($year);
+                $member->tShares = $member->getShare($year);
+                $member->tSpecial = $member->getsSaving($year);
+                $member->tLoan = $member->getLoan($year);
                 $member->loanBalance = $member->getLoan();
-                $member->interest = $int;
-                $member->fines = $fines;
-                $member->appLoan = $appLoan;
-                $member->util = $util;
-                $member->totalSavings = $member->getSaving();
-//            $member->att = $member->memberAttendance(Carbon::parse($date[1])->format('m'));
-                $member->sum = $member->savingsM + $member->shareM + $member->appLoan +
-                    $member->fines + $member->util + $member->specialM + $member->buildingM + $member->loanRepay + $member->interest;
+                $member->tLoanRepayments = $member->getAccumulatedInterest($year)['totalRepayments'];
+                $member->tLoanInterests = $member->getAccumulatedInterest($year)['totalInterest'];
+                $member->tUtilities = $member->getUtility($year);
+                $member->tFines = $member->getFine($year);
+                $member->tBuilding = $member->getBuilding($year);
+
+                $member->sum = $member->tSavings + $member->tShares + $member->tSpecial +
+                    $member->tLoanRepayments + $member->tLoanInterests +
+                    $member->tUtilities + $member->tFines + $member->tBuilding;
             }
 
 
-            return view('admin.monthlyReport2', compact('members'));
+            return view('admin.monthlyReport2', compact('members', 'ret'));
         }
     }
 
