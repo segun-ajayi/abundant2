@@ -138,7 +138,8 @@ class MemberController extends Controller
         if ($request->picture) {
             $uploaded = $request->file('picture');
             $fileName = $member->member_id . '.' . $uploaded->getClientOriginalExtension();
-            File::put(public_path(). '/img/members/' . $fileName, File::get($uploaded));
+            $uploaded->storePubliclyAs('public/member-photos/', $fileName);
+            // File::put(public_path(). '/img/members/' . $fileName, File::get($uploaded));
             $member->update([
                 'pix' => $fileName
             ]);

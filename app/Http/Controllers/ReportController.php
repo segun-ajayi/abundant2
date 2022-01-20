@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\MonthlyAnalysis;
 use App\Models\Loan;
 use App\Models\Member;
+use App\Models\LoanRepayment;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -31,11 +32,13 @@ class ReportController extends Controller
         $end = $date[1];
         $type = $request->type;
         $start = Carbon::parse($start . ' 00:00:00')->format('Y-m-d h:i:s');
-        $end = Carbon::parse($end . ' 23:59:59')->addDay()->format('Y-m-d h:i:s');
+        $end = Carbon::parse($end . ' 23:59:59')->format('Y-m-d h:i:s');
+dd($end);
 //        return (new MonthlyAnalysis($start, $end, $type))->download('monthlyAnalysisReport.xlsx');
         $members = Member::all();
-
-//        dd($members->where('member_id', 108)->load('loans'));
+//	 $mem = LoanRepayment::where('credit', 3470)->first();
+ // $mem->delete();
+//        dd($mem);
         if ($request->item != 'year') {
 
             foreach ($members as $member) {
