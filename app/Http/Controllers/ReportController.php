@@ -16,6 +16,9 @@ class ReportController extends Controller
         return view('admin.monthlyReport');
     }
 
+    public function dividend() {
+        return view('admin.dividendReport');
+    }
 
     public function downloadAnalysis(Request $request) {
         $input = $request->all();
@@ -72,7 +75,7 @@ class ReportController extends Controller
                     $int = 0;
                     $appLoan = $member->loans->whereBetween('approved_on', [$start, $end])->sum('amount');
                     if ($appLoan) {
-                        $appLoan = $appLoan * -1;
+                        $appLoan = $appLoan;
                     } else {
                         $appLoan = 0;
                     }
@@ -112,7 +115,7 @@ class ReportController extends Controller
                 $member->util = $util;
                 $member->totalSavings = $member->getSaving();
 
-                $member->sum = $member->savingsM + $member->shareM + $member->appLoan +
+                $member->sum = $member->savingsM + $member->shareM +
                     $member->fines + $member->util + $member->specialM + $member->buildingM + $member->loanRepay + $member->interest;
             }
             $filename = 'backup/' . Carbon::parse($start)->format('M_Y') . '.sqlite';

@@ -2,10 +2,12 @@
 
 namespace App\Http\Livewire\Member;
 
+use App\Models\Dividend;
 use App\Models\Loan;
 use App\Models\Member;
 use App\Models\Setting;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -20,16 +22,51 @@ class Index extends Component
     public $fineAmount, $fineReason, $payMethod, $utilityType, $price, $value, $gt, $withdrawFrom;
     public $loanType, $duration, $amount, $surety = [], $members, $isOpenWithdraw = false;
     public $user, $savings, $loanRepay, $loanInterest, $shares, $building, $specialSavings, $username;
+    public $dividend, $mode, $year, $unPaidDividend = false;
 
     public function mount($member) {
         $this->members = Member::all();
         $this->user = Auth::user();
         $this->member = $member;
+        if ($this->member->getUnpaidDividend()->count() > 0) {
+            $div = $this->member->getUnpaidDividend();
+            $this->dividend = $div[0]->amount;
+            $this->year = $div[0]->year;
+            $this->unPaidDividend = true;
+        }
         $this->loan = $this->member->loans()->where('status', 1)->first();
         $this->emit('refreshComponents', $this->member);
     }
 
     public function refreshComponents() {
+        $this->emit('refreshComponents', $this->member);
+    }
+
+    public function payDividend() {
+        $this->validate([
+            'dividend' => 'required',
+        ]);
+        if (!$this->mode) {
+            $this->mode = 'savings';
+        }
+
+        if ($this->mode === 'share') {
+            $this->member->creditShare($this->dividend, $this->year . ' Dividend');
+        } elseif ($this->mode === 'savings') {
+            $this->member->creditSavings($this->dividend, $this->year . ' Dividend');
+        } elseif ($this->mode === 'special') {
+            $this->member->creditSpecial($this->dividend, $this->year . ' Dividend');
+        }
+
+        Dividend::where('year', $this->year)
+            ->where('member_id', $this->member->id)
+            ->update([
+            'mode' => $this->mode,
+            'status' => 'paid',
+            'pDate' => Carbon::now()->format('Y-m-d H:i:s')
+        ]);
+        $this->reset('unPaidDividend', 'dividend', 'mode', 'year');
+        $this->emit('toast', 'suc', 'Dividend paid successfully!');
         $this->emit('refreshComponents', $this->member);
     }
 

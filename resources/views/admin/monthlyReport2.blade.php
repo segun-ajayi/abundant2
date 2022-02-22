@@ -34,9 +34,9 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Name</th>
+                                <th>SAVINGS</th>
                                 <th>TOTAL SAVINGS</th>
                                 <th>SHARES</th>
-                                <th>SAVINGS</th>
                                 <th>SPECIAL SAVINGS</th>
                                 <th>APPROVED LOAN</th>
                                 <th>LOAN REPAYMENT</th>
@@ -53,9 +53,9 @@
                                 <tr>
                                     <td>{{ $member->member_id }}</td>
                                     <td>{{ $member->name }}</td>
+                                    <td>₦{{ number_format($member->savingsM, 2, '.', ',') }}</td>
                                     <td>₦{{ number_format($member->totalSavings, 2, '.', ',') }}</td>
                                     <td>₦{{ number_format($member->shareM, 2, '.', ',') }}</td>
-                                    <td>₦{{ number_format($member->savingsM, 2, '.', ',') }}</td>
                                     <td>₦{{ number_format($member->specialM, 2, '.', ',') }}</td>
                                     <td>₦{{ number_format($member->appLoan, 2, '.', ',') }}</td>
                                     <td>₦{{ number_format($member->loanRepay, 2, '.', ',') }}</td>

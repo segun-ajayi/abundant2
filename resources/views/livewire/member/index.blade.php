@@ -47,6 +47,26 @@
                         <h1 class="text-muted">
                             {{ $member->member_id }}
                         </h1>
+                        @if($unPaidDividend)
+                            <div class="card text-white bg-cyan">
+                                <div class="card-body">
+                                    <small class="text-muted">{{ $year }} Unpaid Dividend</small>
+                                    <x-jet-input class="form-control formattedNumberField mt-4" wire:model="dividend" />
+                                    <x-jet-input-error for="dividend" />
+
+                                    @if(Auth::user()->role == 'admin')
+                                        <select class="form-control mt-2" wire:model="mode">
+                                            <option value="savings">Savings</option>
+                                            <option value="share">Shares</option>
+                                            <option value="special">Special</option>
+                                            <option value="cash">Cash</option>
+                                        </select>
+                                        <x-jet-input-error for="mode" />
+                                        <button class="btn btn-behance btn-block btn-sm mt-4" wire:click="payDividend">Pay</button>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 </div>
                 <div class="row">

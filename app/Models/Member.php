@@ -17,6 +17,17 @@ class Member extends Model
     protected $dates = ['deleted_at'];
     protected $guarded = [];
 
+    public function getUnpaidDividend() {
+        return $this->dividend()->where('status', 'unpaid')->get();
+    }
+
+    public function dividend() {
+        return $this->hasMany(Dividend::class);
+    }
+
+    public function getDividend($year) {
+        return $this->dividend()->where('year', $year)->get();
+    }
 
     public function share() {
         return $this->hasOne(Share::class);
@@ -352,11 +363,11 @@ class Member extends Model
     public function creditSpecial($saving, $mode) {
         $spe = $this->specialSavings();
         if ($spe->doesntExist()) {
-            $this->specialSavings()->create([
+            $spe = $this->specialSavings()->create([
                 'balance' => 0
             ]);
         }
-        $spe = $this->specialSavings;
+//        $spe = $this->specialSavings;
         $spe->balance = $spe->balance + $saving;
         $spe->save();
         $spe->history()->create([

@@ -52,6 +52,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function (){
     Route::post('/giveLoan', [LoanController::class, 'store'])->name('giveLoan');
 
 // Reports
+    Route::get('/dividend_report', [ReportController::class, 'dividend'])->name('dividendReport');
     Route::get('/monthly_analysis', [ReportController::class, 'analysis'])->name('analysis');
     Route::post('/monthly_analysis', [ReportController::class, 'downloadAnalysis'])->name('downloadAnalysis');
     Route::post('/posting_report', [ReportController::class, 'postingReport'])->name('postingReport');
@@ -67,6 +68,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function (){
         Route::get('/upload_member', [MemberController::class, 'upload_member'])->name('upload_member');
         Route::post('/upload_member', [MemberController::class, 'upload'])->name('upload');
         Route::post('/withdraw', [PostController::class, 'withdraw'])->name('withdraw');
+        Route::get('/dividend', function() {
+            return view('admin.dividend');
+        })->name('dividend');
 
         Route::post('/delete_members/', [MemberController::class, 'destroy'])->name('delete_member');
         Route::post('/perm_member/', [MemberController::class, 'perm']);

@@ -11,7 +11,7 @@ $('.datatable').DataTable({
         // {extend: 'csv'},
         {extend: 'excel',
             text: '<span class="fa fa-download"></span> Excel',
-            filename: 'montlyReport',
+            filename: 'monthlyReport',
             footer: true,
             title: 'Monthly Report'},
         // {extend: 'pdf', title: 'Monthly Report'},
