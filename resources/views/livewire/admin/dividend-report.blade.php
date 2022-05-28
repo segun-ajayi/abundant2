@@ -35,7 +35,7 @@
                                             <td>{{ $item->paid }}</td>
                                             <td>{{ $item->unpaid }}</td>
                                             <td>
-                                                <button wire:click="download('{{ $item->year }}')" class="btn btn-sm btn-primary"><i class="fa fa-download"></i> Download</button>
+                                                <button wire:click="download('{{ $item->year }}')" wire:loading.class="btn-loading" class="btn btn-sm btn-primary"><i class="fa fa-download"></i> Download</button>
                                             </td>
                                         </tr>
                                     @empty

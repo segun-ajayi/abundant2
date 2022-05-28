@@ -39,7 +39,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function (){
     Route::post('/searchMember', [MemberController::class, 'searchMember'])->name('searchMember');
     Route::post('/createMember', [MemberController::class, 'createMember'])->name('createMember');
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance');
-    Route::get('/markAttendance', [AttendanceController::class, 'markAttendance'])->name('markAttendance');
+    Route::get('/markAttendance', function () {
+        return view('admin.markAttendance');
+    })->name('markAttendance');
     Route::post('/mark', [AttendanceController::class, 'mark'])->name('markee');
 
 // Posts

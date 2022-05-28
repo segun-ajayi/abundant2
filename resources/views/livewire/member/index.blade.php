@@ -6,8 +6,28 @@
         <div class="col-md-6">
             <button class="btn btn-sm btn-primary px-5 ml-5 inline" wire:click="next" wire:loading.class="loading">Next</button>
             <div class="inline w-50 p-2">
-                <button class="btn btn-success btn-sm pull-right">Go</button>
-                <input class="form-control pull-right w-50" placeholder="Go to Member" wire:model.lazy="gt" type="number">
+                <input class="form-control pull-right w-50" placeholder="Search Member" wire:model.debounce:400ms="gt" type="text">
+
+                @if($searchResults)
+                    <div style="display: block" class="dropdown-menu dropdown-menu-right dropdown-menu-lg mr-5">
+                        <div class="dropdown-header text-center">
+                            <strong>Search Result</strong>
+                        </div>
+                        @forelse($searchResults as $item)
+                            <a href="{{ route('member', $item->id) }}" class="dropdown-item">
+                                <i class="icon-user-follow text-success"></i> {{ $item->member_id . ' | ' . $item->name }}
+                            </a>
+                        @empty
+                            <a class="dropdown-item">
+                                <i class="icon-dislike text-danger"></i> No records found!
+                            </a>
+                        @endforelse
+                        <div class="dropdown-header text-center">
+                            <strong wire:click="clearResult" class="cursor-pointer"><i class="icon-trash text-danger"></i> Clear</strong>
+                        </div>
+                    </div>
+                @endif
+
             </div>
         </div>
     </div>

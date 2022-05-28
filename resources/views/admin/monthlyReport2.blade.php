@@ -72,9 +72,9 @@
                             <tr>
                                 <th>#</th>
                                 <th>Grand Total</th>
+                                <th>₦{{ number_format($members->sum('savingsM'), 2, '.', ',') }}</th>
                                 <th>₦{{ number_format($members->sum('totalSavings'), 2, '.', ',') }}</th>
                                 <th>₦{{ number_format($members->sum('shareM'), 2, '.', ',') }}</th>
-                                <th>₦{{ number_format($members->sum('savingsM'), 2, '.', ',') }}</th>
                                 <th>₦{{ number_format($members->sum('specialM'), 2, '.', ',') }}</th>
                                 <th>₦{{ number_format($members->sum('appLoan'), 2, '.', ',') }}</th>
                                 <th>₦{{ number_format($members->sum('loanRepay'), 2, '.', ',') }}</th>

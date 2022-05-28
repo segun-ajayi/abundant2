@@ -16,6 +16,11 @@
                                 <x-jet-input-error for="dividend" />
                             </div>
                             <div class="form-group">
+                                <label for="memberId">Total Shares + Total Savings</label>
+                                <input type="text" class="form-control formattedNumberField" wire:model="divider" id="divider">
+                                <x-jet-input-error for="divider" />
+                            </div>
+                            <div class="form-group">
                                 <label for="year">Year</label>
                                 <select class="form-control" wire:model="year" id="year">
                                     <option value="">select year</option>
@@ -25,7 +30,7 @@
                                 </select>
                                 <x-jet-input-error for="year" />
                             </div>
-                            <button wire:click="submit" class="btn btn-primary pull-right">Prepare</button>
+                            <button wire:click="submit" wire:loading.class="btn-loading" class="btn btn-primary pull-right">Prepare</button>
                         </div>
                     </div>
                 </div>
@@ -73,7 +78,7 @@
                             {{ __('Cancel') }}
                         </x-jet-secondary-button>
 
-                        <x-jet-button class="ml-2" wire:click="continue" wire:loading.attr="loading">
+                        <x-jet-button class="ml-2" wire:click="continue" wire:loading.class="btn-loading">
                             {{ __('Continue') }}
                         </x-jet-button>
         </x-slot>

@@ -10,6 +10,7 @@ use App\Models\Utility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
@@ -89,7 +90,16 @@ class MemberController extends Controller
 
     public function edit(Member $member) {
         $members = Member::all();
-        return view('member.edit', compact('member', 'members'));
+        $ava = '';
+        $av = DB::select('select distinct member_id+1 as s from members where member_id + 1 not in(select distinct member_id from members)');
+        foreach ($av as $a) {
+            if (!$ava) {
+                $ava = $a->s;
+                continue;
+            }
+            $ava = $ava . ', ' . $a->s;
+        }
+        return view('member.edit', compact('member', 'members', 'ava'));
     }
 
     public function add_member() {
@@ -193,6 +203,9 @@ class MemberController extends Controller
             return response()->json('Something when wrong, please refresh and try again.', 402);
         }
         $member = Member::find($request->id);
+        $member->update([
+            'member_id' => 232232 + $request->id
+        ]);
         $member->delete();
         return response()->json('Member deleted successfully', 200);
     }
@@ -205,9 +218,13 @@ class MemberController extends Controller
         if ($validate->fails()) {
             return response()->json('Something when wrong, please refresh and try again.', 402);
         }
+        $av = DB::select('select distinct member_id+1 as s from members where member_id + 1 not in(select distinct member_id from members)');
+
         $member = Member::withTrashed()->where('id', $request->id)->first();
         if ($member->trashed()) {
             $member->restore();
+            $member->member_id = $av[0]->s;
+            $member->save();
             return response()->json('Member restored successfully', 200);
         }
         return response()->json('Something when wrong, please refresh and try again.', 402);

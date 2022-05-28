@@ -22,7 +22,7 @@ class Index extends Component
     public $fineAmount, $fineReason, $payMethod, $utilityType, $price, $value, $gt, $withdrawFrom;
     public $loanType, $duration, $amount, $surety = [], $members, $isOpenWithdraw = false;
     public $user, $savings, $loanRepay, $loanInterest, $shares, $building, $specialSavings, $username;
-    public $dividend, $mode, $year, $unPaidDividend = false;
+    public $dividend, $mode, $year, $unPaidDividend = false, $searchResults = [];
 
     public function mount($member) {
         $this->members = Member::all();
@@ -33,6 +33,8 @@ class Index extends Component
             $this->dividend = $div[0]->amount;
             $this->year = $div[0]->year;
             $this->unPaidDividend = true;
+        } else {
+            $this->reset('dividend', 'mode', 'year', 'unPaidDividend');
         }
         $this->loan = $this->member->loans()->where('status', 1)->first();
         $this->emit('refreshComponents', $this->member);
@@ -70,11 +72,16 @@ class Index extends Component
         $this->emit('refreshComponents', $this->member);
     }
 
+    public function clearResult() {
+        $this->searchResults = [];
+    }
+
     public function updatedGt($value) {
-        $mem = Member::where('member_id', $value)->first();
-        if ($mem) {
-            $this->mount($mem);
+        if ($value === '') {
+            $this->clearResult();
+            return;
         }
+        $this->searchResults = Member::where('member_id', $value)->orWhere('name', 'LIKE', '%' . $value . '%')->take(5)->get();
     }
 
     public function reverseloan() {

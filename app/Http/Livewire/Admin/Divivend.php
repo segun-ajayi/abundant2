@@ -11,7 +11,7 @@ use Livewire\Component;
 
 class Divivend extends Component
 {
-    public $dividend, $year, $caution = false, $isLoading = false;
+    public $dividend, $divider, $year, $caution = false, $isLoading = false;
 
     public function continue() {
         $this->validate([
@@ -61,12 +61,16 @@ class Divivend extends Component
         $year = '12-12-' . $this->year;
         $end = Carbon::parse($year)->endOfYear()->format('Y-m-d H:i:s');
         $end = Carbon::createFromFormat('Y-m-d H:i:s', $end);
-        $totalSavings = SavingHistory::where('date', '<=',$end)->sum('credit')
-            - SavingHistory::where('date', '<=',$end)->sum('debit');
-        $totalShares = ShareHistory::where('date', '<=',$end)->sum('credit')
-            - ShareHistory::where('date', '<=',$end)->sum('debit');
-        $divider = $totalSavings + $totalShares;
-
+        if ($this->divider) {
+            $divider = str_replace(',', '', $this->divider);
+        } else {
+            $totalSavings = SavingHistory::where('date', '<=',$end)->sum('credit')
+                - SavingHistory::where('date', '<=',$end)->sum('debit');
+            $totalShares = ShareHistory::where('date', '<=',$end)->sum('credit')
+                - ShareHistory::where('date', '<=',$end)->sum('debit');
+            $divider = $totalSavings + $totalShares;
+        }
+//        dd($end, $totalSavings, ShareHistory::where('date', '<=',$end)->sum('debit'));
         $members = Member::all();
         $last = Carbon::parse($end)->subMonths(6);
 
