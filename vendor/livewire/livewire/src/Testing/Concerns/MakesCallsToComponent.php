@@ -2,11 +2,13 @@
 
 namespace Livewire\Testing\Concerns;
 
-use Illuminate\Http\UploadedFile;
-use Livewire\FileUploadConfiguration;
-use Livewire\Controllers\FileUploadHandler;
-use Illuminate\Validation\ValidationException;
 use function Livewire\str;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Livewire\Controllers\FileUploadHandler;
+use Livewire\FileUploadConfiguration;
+use Livewire\Livewire;
 
 trait MakesCallsToComponent
 {
@@ -53,6 +55,11 @@ trait MakesCallsToComponent
     public function set($name, $value = null)
     {
         return $this->updateProperty($name, $value);
+    }
+
+    public function toggle($name)
+    {
+        return $this->set($name, ! $this->get($name));
     }
 
     public function updateProperty($name, $value = null)
@@ -131,11 +138,15 @@ trait MakesCallsToComponent
 
     public function sendMessage($message, $payload)
     {
+        $payload['id'] = Str::random(4);
+
         $this->lastResponse = $this->pretendWereSendingAComponentUpdateRequest($message, $payload);
 
         if (! $this->lastResponse->exception) {
             $this->updateComponent($this->lastResponse->original);
         }
+
+        Livewire::flushState();
 
         return $this;
     }

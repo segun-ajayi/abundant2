@@ -1,7 +1,12 @@
 <?php
-use \ParagonIE\ConstantTime\Base32Hex;
+declare(strict_types=1);
+namespace ParagonIE\ConstantTime\Tests;
 
-class Base32HexTest extends PHPUnit\Framework\TestCase
+use InvalidArgumentException;
+use ParagonIE\ConstantTime\Base32Hex;
+use PHPUnit\Framework\TestCase;
+
+class Base32HexTest extends TestCase
 {
     /**
      * @covers Base32Hex::encode()
@@ -45,5 +50,12 @@ class Base32HexTest extends PHPUnit\Framework\TestCase
                 );
             }
         }
+    }
+
+    public function testDecodeNoPadding()
+    {
+        Base32Hex::decodeNoPadding('aaaqe');
+        $this->expectException(InvalidArgumentException::class);
+        Base32Hex::decodeNoPadding('aaaqe===');
     }
 }

@@ -5,8 +5,12 @@ namespace Illuminate\Foundation\Console;
 use Illuminate\Console\GeneratorCommand;
 use Illuminate\Support\Str;
 use LogicException;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 
+#[AsCommand(name: 'make:policy')]
 class PolicyMakeCommand extends GeneratorCommand
 {
     /**
@@ -15,6 +19,17 @@ class PolicyMakeCommand extends GeneratorCommand
      * @var string
      */
     protected $name = 'make:policy';
+
+    /**
+     * The name of the console command.
+     *
+     * This name is used to identify the command during lazy loading.
+     *
+     * @var string|null
+     *
+     * @deprecated
+     */
+    protected static $defaultName = 'make:policy';
 
     /**
      * The console command description.
@@ -72,6 +87,8 @@ class PolicyMakeCommand extends GeneratorCommand
      * Get the model for the guard's user provider.
      *
      * @return string|null
+     *
+     * @throws \LogicException
      */
     protected function userProviderModel()
     {
@@ -81,6 +98,10 @@ class PolicyMakeCommand extends GeneratorCommand
 
         if (is_null($guardProvider = $config->get('auth.guards.'.$guard.'.provider'))) {
             throw new LogicException('The ['.$guard.'] guard is not defined in your "auth" configuration file.');
+        }
+
+        if (! $config->get('auth.providers.'.$guardProvider.'.model')) {
+            return 'App\\Models\\User';
         }
 
         return $config->get(
@@ -99,7 +120,7 @@ class PolicyMakeCommand extends GeneratorCommand
     {
         $model = str_replace('/', '\\', $model);
 
-        if (Str::startsWith($model, '\\')) {
+        if (str_starts_with($model, '\\')) {
             $namespacedModel = trim($model, '\\');
         } else {
             $namespacedModel = $this->qualifyModel($model);
@@ -131,8 +152,13 @@ class PolicyMakeCommand extends GeneratorCommand
             array_keys($replace), array_values($replace), $stub
         );
 
-        return str_replace(
-            "use {$namespacedModel};\nuse {$namespacedModel};", "use {$namespacedModel};", $stub
+        return preg_replace(
+            vsprintf('/use %s;[\r\n]+use %s;/', [
+                preg_quote($namespacedModel, '/'),
+                preg_quote($namespacedModel, '/'),
+            ]),
+            "use {$namespacedModel};",
+            $stub
         );
     }
 
@@ -180,8 +206,33 @@ class PolicyMakeCommand extends GeneratorCommand
     protected function getOptions()
     {
         return [
+            ['force', 'f', InputOption::VALUE_NONE, 'Create the class even if the policy already exists'],
             ['model', 'm', InputOption::VALUE_OPTIONAL, 'The model that the policy applies to'],
             ['guard', 'g', InputOption::VALUE_OPTIONAL, 'The guard that the policy relies on'],
         ];
+    }
+
+    /**
+     * Interact further with the user if they were prompted for missing arguments.
+     *
+     * @param  \Symfony\Component\Console\Input\InputInterface  $input
+     * @param  \Symfony\Component\Console\Output\OutputInterface  $output
+     * @return void
+     */
+    protected function afterPromptingForMissingArguments(InputInterface $input, OutputInterface $output)
+    {
+        if ($this->isReservedName($this->getNameInput()) || $this->didReceiveOptions($input)) {
+            return;
+        }
+
+        $model = $this->components->askWithCompletion(
+            'What model should this policy apply to?',
+            $this->possibleModels(),
+            'none'
+        );
+
+        if ($model && $model !== 'none') {
+            $input->setOption('model', $model);
+        }
     }
 }

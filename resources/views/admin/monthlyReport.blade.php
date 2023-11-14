@@ -40,8 +40,10 @@
                                         <label>Type</label>
                                         <div class="input-group">
                                             <select class="form-control" name="item">
-                                                <option value="month">Montyly</option>
-                                                <option value="year">Yearly</option>
+                                                <option value="month">Monthly</option>
+                                                @for($x = \Carbon\Carbon::now()->format('Y'); $x >= 2019 ; $x--)
+                                                    <option value="{{ $x }}">Year {{ $x }} Report</option>
+                                                @endfor
                                             </select>
                                         </div>
                                     </fieldset>
@@ -69,6 +71,7 @@
                 'Last 30 Days': [moment().subtract(29, 'days'), moment()],
                 'This Month': [moment().startOf('month'), moment().endOf('month')],
                 'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                // 'Last Year': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
             }
         });
     </script>

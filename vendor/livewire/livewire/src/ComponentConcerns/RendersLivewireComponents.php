@@ -6,34 +6,66 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\View\Engines\CompilerEngine;
 use Illuminate\View\Engines\PhpEngine;
 use Livewire\Exceptions\BypassViewHandler;
+use Livewire\LivewireManager;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
 trait RendersLivewireComponents
 {
-    protected $livewireComponent;
-    protected $isRenderingLivewireComponent = false;
+    protected $livewireComponents = [];
 
     public function startLivewireRendering($component)
     {
-        $this->livewireComponent = $component;
-        $this->isRenderingLivewireComponent = true;
+        $this->livewireComponents[] = $component;
     }
 
     public function endLivewireRendering()
     {
-        $this->isRenderingLivewireComponent = false;
+        array_pop($this->livewireComponents);
     }
 
-    public function setLivewireComponent($component)
+    public function isRenderingLivewireComponent()
     {
-        $this->livewireComponent = $component;
+        return ! empty($this->livewireComponents);
+    }
+   
+    public function get($path, array $data = [])
+    {
+        if (! $this->isRenderingLivewireComponent()) return parent::get($path, $data); 
+
+        $this->lastCompiled[] = $path;
+
+        // If this given view has expired, which means it has simply been edited since
+        // it was last compiled, we will re-compile the views so we can evaluate a
+        // fresh copy of the view. We'll pass the compiler the path of the view.
+        if ($this->compiler->isExpired($path)) {
+            // @note: this is the only modification of this overladed Laravel method:
+            // We are globally setting the current view path being compiled for
+            // reference from the @livewire Blade directive.
+            LivewireManager::$currentCompilingViewPath = $path;
+            LivewireManager::$currentCompilingChildCounter = 0;
+            
+            $this->compiler->compile($path);
+
+            // Here, we'll reset them back, for the next view to be compiled.
+            LivewireManager::$currentCompilingViewPath = null;
+            LivewireManager::$currentCompilingChildCounter = null;
+        }
+
+        // Once we have the path to the compiled file, we will evaluate the paths with
+        // typical PHP just like any other templates. We also keep a stack of views
+        // which have been rendered for right exception messages to be generated.
+        $results = $this->evaluatePath($this->compiler->getCompiledPath($path), $data);
+
+        array_pop($this->lastCompiled);
+
+        return $results;
     }
 
     protected function evaluatePath($__path, $__data)
     {
-        if (! $this->isRenderingLivewireComponent) {
+        if (! $this->isRenderingLivewireComponent()) {
             return parent::evaluatePath($__path, $__data);
         }
 
@@ -45,10 +77,11 @@ trait RendersLivewireComponents
         // flush out any stray output that might get out before an error occurs or
         // an exception is thrown. This prevents any partial views from leaking.
         try {
+            $component = end($this->livewireComponents);
             \Closure::bind(function () use ($__path, $__data) {
                 extract($__data, EXTR_SKIP);
                 include $__path;
-            }, $this->livewireComponent ? $this->livewireComponent : $this)();
+            }, $component, $component)();
         } catch (Exception $e) {
             $this->handleViewException($e, $obLevel);
         } catch (Throwable $e) {

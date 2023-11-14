@@ -21,7 +21,7 @@ trait HandlesActions
         $propertyName = $this->beforeFirstDot($name);
 
         throw_if(
-            ($this->{$propertyName} instanceof Model || $this->{$propertyName} instanceof EloquentCollection) && $this->missingRuleFor($name),
+            isset($this->{$propertyName}) && ($this->{$propertyName} instanceof Model || $this->{$propertyName} instanceof EloquentCollection) && $this->missingRuleFor($name),
             new CannotBindToModelDataWithoutValidationRuleException($name, $this::getName())
         );
 
@@ -102,7 +102,7 @@ trait HandlesActions
         Livewire::dispatch('component.updated', $this, $name, $value);
     }
 
-    public function callMethod($method, $params = [])
+    public function callMethod($method, $params = [], $captureReturnValueCallback = null)
     {
         $method = trim($method);
 
@@ -129,7 +129,7 @@ trait HandlesActions
                 } else {
                     $currentValue = $this->{$prop};
                 }
-                
+
                 $this->syncInput($prop, ! $currentValue, $rehash = false);
 
                 return;
@@ -148,7 +148,7 @@ trait HandlesActions
 
         $returned = ImplicitlyBoundMethod::call(app(), [$this, $method], $params);
 
-        Livewire::dispatch('action.returned', $this, $method, $returned);
+        $captureReturnValueCallback && $captureReturnValueCallback($returned);
     }
 
     protected function methodIsPublicAndNotDefinedOnBaseClass($methodName)

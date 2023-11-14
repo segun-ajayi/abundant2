@@ -119,7 +119,7 @@ abstract class Job
     }
 
     /**
-     * Release the job back into the queue.
+     * Release the job back into the queue after (n) seconds.
      *
      * @param  int  $delay
      * @return void
@@ -210,7 +210,7 @@ abstract class Job
         [$class, $method] = JobName::parse($payload['job']);
 
         if (method_exists($this->instance = $this->resolve($class), 'failed')) {
-            $this->instance->failed($payload['data'], $e, $payload['uuid']);
+            $this->instance->failed($payload['data'], $e, $payload['uuid'] ?? '');
         }
     }
 
@@ -266,9 +266,19 @@ abstract class Job
     }
 
     /**
+     * Determine if the job should fail when it timeouts.
+     *
+     * @return bool
+     */
+    public function shouldFailOnTimeout()
+    {
+        return $this->payload()['failOnTimeout'] ?? false;
+    }
+
+    /**
      * The number of seconds to wait before retrying a job that encountered an uncaught exception.
      *
-     * @return int|null
+     * @return int|int[]|null
      */
     public function backoff()
     {
@@ -292,7 +302,7 @@ abstract class Job
      */
     public function retryUntil()
     {
-        return $this->payload()['retryUntil'] ?? $this->payload()['timeoutAt'] ?? null;
+        return $this->payload()['retryUntil'] ?? null;
     }
 
     /**

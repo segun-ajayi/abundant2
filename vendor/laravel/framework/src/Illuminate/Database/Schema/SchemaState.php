@@ -58,7 +58,7 @@ abstract class SchemaState
         $this->files = $files ?: new Filesystem;
 
         $this->processFactory = $processFactory ?: function (...$arguments) {
-            return Process::fromShellCommandline(...$arguments);
+            return Process::fromShellCommandline(...$arguments)->setTimeout(null);
         };
 
         $this->handleOutputUsing(function () {
@@ -86,7 +86,7 @@ abstract class SchemaState
     /**
      * Create a new process instance.
      *
-     * @param  array  $arguments
+     * @param  mixed  ...$arguments
      * @return \Symfony\Component\Process\Process
      */
     public function makeProcess(...$arguments)

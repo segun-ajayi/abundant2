@@ -6,8 +6,28 @@
         <div class="col-md-6">
             <button class="btn btn-sm btn-primary px-5 ml-5 inline" wire:click="next" wire:loading.class="loading">Next</button>
             <div class="inline w-50 p-2">
-                <button class="btn btn-success btn-sm pull-right">Go</button>
-                <input class="form-control pull-right w-50" placeholder="Go to Member" wire:model.lazy="gt" type="number">
+                <input class="form-control pull-right w-50" placeholder="Search Member" wire:model.debounce:400ms="gt" type="text">
+
+                @if($searchResults)
+                    <div style="display: block" class="dropdown-menu dropdown-menu-right dropdown-menu-lg mr-5">
+                        <div class="dropdown-header text-center">
+                            <strong>Search Result</strong>
+                        </div>
+                        @forelse($searchResults as $item)
+                            <a href="{{ route('member', $item->id) }}" class="dropdown-item">
+                                <i class="icon-user-follow text-success"></i> {{ $item->member_id . ' | ' . $item->name }}
+                            </a>
+                        @empty
+                            <a class="dropdown-item">
+                                <i class="icon-dislike text-danger"></i> No records found!
+                            </a>
+                        @endforelse
+                        <div class="dropdown-header text-center">
+                            <strong wire:click="clearResult" class="cursor-pointer"><i class="icon-trash text-danger"></i> Clear</strong>
+                        </div>
+                    </div>
+                @endif
+
             </div>
         </div>
     </div>
@@ -47,6 +67,26 @@
                         <h1 class="text-muted">
                             {{ $member->member_id }}
                         </h1>
+                        @if($unPaidDividend)
+                            <div class="card text-white bg-cyan">
+                                <div class="card-body">
+                                    <small class="text-muted">{{ $year }} Unpaid Dividend</small>
+                                    <x-jet-input class="form-control formattedNumberField mt-4" wire:model="dividend" />
+                                    <x-jet-input-error for="dividend" />
+
+                                    @if(Auth::user()->role == 'admin')
+                                        <select class="form-control mt-2" wire:model="mode">
+                                            <option value="savings">Savings</option>
+                                            <option value="share">Shares</option>
+                                            <option value="special">Special</option>
+                                            <option value="cash">Cash</option>
+                                        </select>
+                                        <x-jet-input-error for="mode" />
+                                        <button class="btn btn-behance btn-block btn-sm mt-4" wire:click="payDividend">Pay</button>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 </div>
                 <div class="row">
@@ -115,6 +155,7 @@
                                     @endif
                                     <div class="text-value">₦ {{ number_format($member->getLoan(), 2, '.', ',') }}</div>
                                     <div>Current Loan</div>
+                                    <div>₦ {{ number_format($this->member->getAccumulatedInterest(), 2, '.', ',') }} Acc. Interest</div>
                                     @if($member->getLoan())
                                         <div class="progress progress-xs my-2">
                                             <div class="progress-bar bg-info" role="progressbar" style="width: {{ $member->loanPercent() }}%" aria-valuenow="{{ $member->loanPercent() }}" aria-valuemin="0" aria-valuemax="100"></div>

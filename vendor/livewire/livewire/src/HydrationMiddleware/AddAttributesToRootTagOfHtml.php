@@ -15,7 +15,7 @@ class AddAttributesToRootTagOfHtml
                 return sprintf('%s="%s"', $key, $value);
             })->implode(' ');
 
-        preg_match('/<([a-zA-Z0-9\-]*)/', $dom, $matches, PREG_OFFSET_CAPTURE);
+        preg_match('/(?:\n\s*|^\s*)<([a-zA-Z0-9\-]+)/', $dom, $matches, PREG_OFFSET_CAPTURE);
 
         throw_unless(
             count($matches),
@@ -37,9 +37,9 @@ class AddAttributesToRootTagOfHtml
     protected function escapeStringForHtml($subject)
     {
         if (is_string($subject) || is_numeric($subject)) {
-            return htmlspecialchars($subject);
+            return htmlspecialchars($subject, ENT_QUOTES|ENT_SUBSTITUTE);
         }
 
-        return htmlspecialchars(json_encode($subject));
+        return htmlspecialchars(json_encode($subject), ENT_QUOTES|ENT_SUBSTITUTE);
     }
 }

@@ -54,9 +54,13 @@ class TwoFactorLoginRequest extends FormRequest
      */
     public function hasValidCode()
     {
-        return $this->code && app(TwoFactorAuthenticationProvider::class)->verify(
+        return $this->code && tap(app(TwoFactorAuthenticationProvider::class)->verify(
             decrypt($this->challengedUser()->two_factor_secret), $this->code
-        );
+        ), function ($result) {
+            if ($result) {
+                $this->session()->forget('login.id');
+            }
+        });
     }
 
     /**
@@ -70,9 +74,30 @@ class TwoFactorLoginRequest extends FormRequest
             return;
         }
 
-        return collect($this->challengedUser()->recoveryCodes())->first(function ($code) {
-            return hash_equals($this->recovery_code, $code) ? $code : null;
+        return tap(collect($this->challengedUser()->recoveryCodes())->first(function ($code) {
+            return hash_equals($code, $this->recovery_code) ? $code : null;
+        }), function ($code) {
+            if ($code) {
+                $this->session()->forget('login.id');
+            }
         });
+    }
+
+    /**
+     * Determine if there is a challenged user in the current session.
+     *
+     * @return bool
+     */
+    public function hasChallengedUser()
+    {
+        if ($this->challengedUser) {
+            return true;
+        }
+
+        $model = app(StatefulGuard::class)->getProvider()->getModel();
+
+        return $this->session()->has('login.id') &&
+            $model::find($this->session()->get('login.id'));
     }
 
     /**
@@ -89,7 +114,7 @@ class TwoFactorLoginRequest extends FormRequest
         $model = app(StatefulGuard::class)->getProvider()->getModel();
 
         if (! $this->session()->has('login.id') ||
-            ! $user = $model::find($this->session()->pull('login.id'))) {
+            ! $user = $model::find($this->session()->get('login.id'))) {
             throw new HttpResponseException(
                 app(FailedTwoFactorLoginResponse::class)->toResponse($this)
             );

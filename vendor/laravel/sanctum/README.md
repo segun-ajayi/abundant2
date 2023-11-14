@@ -1,4 +1,4 @@
-<p align="center"><img src="https://laravel.com/assets/img/components/logo-sanctum.svg"></p>
+<p align="center"><img src="/art/logo.svg" alt="Logo Laravel Sanctum"></p>
 
 <p align="center">
 <a href="https://github.com/laravel/sanctum/actions"><img src="https://github.com/laravel/sanctum/workflows/tests/badge.svg" alt="Build Status"></a>
@@ -13,7 +13,7 @@ Laravel Sanctum provides a featherweight authentication system for SPAs and simp
 
 ## Official Documentation
 
-Documentation for Sanctum can be found on the [Laravel website](https://laravel.com/docs/master/sanctum).
+Documentation for Sanctum can be found on the [Laravel website](https://laravel.com/docs/sanctum).
 
 ## Contributing
 

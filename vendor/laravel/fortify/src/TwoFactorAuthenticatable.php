@@ -13,6 +13,21 @@ use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 trait TwoFactorAuthenticatable
 {
     /**
+     * Determine if two-factor authentication has been enabled.
+     *
+     * @return bool
+     */
+    public function hasEnabledTwoFactorAuthentication()
+    {
+        if (Fortify::confirmsTwoFactorAuthentication()) {
+            return ! is_null($this->two_factor_secret) &&
+                   ! is_null($this->two_factor_confirmed_at);
+        }
+
+        return ! is_null($this->two_factor_secret);
+    }
+
+    /**
      * Get the user's two factor authentication recovery codes.
      *
      * @return array
@@ -65,7 +80,7 @@ trait TwoFactorAuthenticatable
     {
         return app(TwoFactorAuthenticationProvider::class)->qrCodeUrl(
             config('app.name'),
-            $this->email,
+            $this->{Fortify::username()},
             decrypt($this->two_factor_secret)
         );
     }

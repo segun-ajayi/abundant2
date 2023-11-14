@@ -4,7 +4,6 @@ namespace Laravel\Jetstream\Http\Controllers\Inertia;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Validator;
 use Laravel\Jetstream\Jetstream;
 
 class ApiTokenController extends Controller
@@ -82,7 +81,7 @@ class ApiTokenController extends Controller
      */
     public function destroy(Request $request, $tokenId)
     {
-        $request->user()->tokens()->where('id', $tokenId)->delete();
+        $request->user()->tokens()->where('id', $tokenId)->first()->delete();
 
         return back(303);
     }

@@ -29,7 +29,7 @@ final class Style
      */
     public function __construct(ConsoleOutputInterface $output)
     {
-        if (!$output instanceof ConsoleOutput) {
+        if (! $output instanceof ConsoleOutput) {
             throw new ShouldNotHappen();
         }
 
@@ -58,7 +58,7 @@ final class Style
             return;
         }
 
-        if (!$state->headerPrinted) {
+        if (! $state->headerPrinted) {
             $this->output->writeln($this->titleLineFrom(
                 $state->getTestCaseTitle() === 'FAIL' ? 'white' : 'black',
                 $state->getTestCaseTitleColor(),
@@ -69,7 +69,6 @@ final class Style
         }
 
         $state->eachTestCaseTests(function (TestResult $testResult) {
-            usleep(20000);
             $this->output->writeln($this->testLineFrom(
                 $testResult->color,
                 $testResult->icon,
@@ -93,12 +92,12 @@ final class Style
             return $testResult->type === TestResult::FAIL;
         });
 
-        if (!$onFailure) {
+        if (! $onFailure) {
             $this->output->writeln(['', "  \e[2m---\e[22m", '']);
         }
 
         array_map(function (TestResult $testResult) use ($onFailure) {
-            if (!$onFailure) {
+            if (! $onFailure) {
                 $this->output->write(sprintf(
                     '  <fg=red;options=bold>• %s </>> <fg=red;options=bold>%s</>',
                     $testResult->testCaseName,
@@ -106,7 +105,7 @@ final class Style
                 ));
             }
 
-            if (!$testResult->throwable instanceof Throwable) {
+            if (! $testResult->throwable instanceof Throwable) {
                 throw new ShouldNotHappen();
             }
 
@@ -122,7 +121,7 @@ final class Style
         $types = [TestResult::FAIL, TestResult::WARN, TestResult::RISKY, TestResult::INCOMPLETE, TestResult::SKIPPED, TestResult::PASS];
         foreach ($types as $type) {
             if (($countTests = $state->countTestsInTestSuiteBy($type)) !== 0) {
-                $color   = TestResult::makeColor($type);
+                $color = TestResult::makeColor($type);
                 $tests[] = "<fg=$color;options=bold>$countTests $type</>";
             }
         }
@@ -132,7 +131,7 @@ final class Style
             $tests[] = "\e[2m$pending pending\e[22m";
         }
 
-        if (!empty($tests)) {
+        if (! empty($tests)) {
             $this->output->write([
                 "\n",
                 sprintf(
@@ -145,12 +144,12 @@ final class Style
         if ($timer !== null) {
             $timeElapsed = number_format($timer->result(), 2, '.', '');
             $this->output->writeln([
-                    '',
-                    sprintf(
-                        '  <fg=white;options=bold>Time:   </><fg=default>%ss</>',
-                        $timeElapsed
-                    ),
-                ]
+                '',
+                sprintf(
+                    '  <fg=white;options=bold>Time:   </><fg=default>%ss</>',
+                    $timeElapsed
+                ),
+            ]
             );
         }
 
@@ -179,12 +178,28 @@ final class Style
         }
 
         $writer->ignoreFilesIn([
+            '/vendor\/bin\/pest/',
+            '/bin\/pest/',
             '/vendor\/pestphp\/pest/',
+            '/vendor\/phpspec\/prophecy-phpunit/',
+            '/vendor\/phpspec\/prophecy/',
             '/vendor\/phpunit\/phpunit\/src/',
             '/vendor\/mockery\/mockery/',
             '/vendor\/laravel\/dusk/',
             '/vendor\/laravel\/framework\/src\/Illuminate\/Testing/',
             '/vendor\/laravel\/framework\/src\/Illuminate\/Foundation\/Testing/',
+            '/vendor\/symfony\/framework-bundle\/Test/',
+            '/vendor\/symfony\/phpunit-bridge/',
+            '/vendor\/symfony\/dom-crawler/',
+            '/vendor\/symfony\/browser-kit/',
+            '/vendor\/symfony\/css-selector/',
+            '/vendor\/bin\/.phpunit/',
+            '/bin\/.phpunit/',
+            '/vendor\/bin\/simple-phpunit/',
+            '/bin\/phpunit/',
+            '/vendor\/coduo\/php-matcher\/src\/PHPUnit/',
+            '/vendor\/sulu\/sulu\/src\/Sulu\/Bundle\/TestBundle\/Testing/',
+            '/vendor\/webmozart\/assert/',
         ]);
 
         if ($throwable instanceof ExceptionWrapper && $throwable->getOriginalException() !== null) {
@@ -196,8 +211,21 @@ final class Style
         $writer->write($inspector);
 
         if ($throwable instanceof ExpectationFailedException && $comparisionFailure = $throwable->getComparisonFailure()) {
-            $diff  = $comparisionFailure->getDiff();
-            $diff  = trim((string) preg_replace("/\r|\n/", "\n  ", $diff));
+            $diff = $comparisionFailure->getDiff();
+            $lines = explode(PHP_EOL, $diff);
+            $diff = '';
+            foreach ($lines as $line) {
+                if (0 === strpos($line, '-')) {
+                    $line = '<fg=red>'.$line.'</>';
+                } elseif (0 === strpos($line, '+')) {
+                    $line = '<fg=green>'.$line.'</>';
+                }
+
+                $diff .= $line.PHP_EOL;
+            }
+
+            $diff = trim((string) preg_replace("/\r|\n/", "\n  ", $diff));
+
             $this->output->write("  $diff");
         }
 
@@ -223,7 +251,7 @@ final class Style
      */
     private function testLineFrom(string $fg, string $icon, string $description, string $warning = null): string
     {
-        if (!empty($warning)) {
+        if (! empty($warning)) {
             $warning = sprintf(
                 ' → %s',
                 $warning

@@ -13,7 +13,7 @@
                 <table class="table table-striped table-bordered datatable">
                     <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>S/N</th>
                         <th>Name</th>
                         <th>Email</th>
                         <th>Phone</th>
@@ -23,7 +23,7 @@
                     <tbody>
                     @foreach($members as $member)
                         <tr>
-                            <td>{{ $member->member_id }}</td>
+                            <td>{{ $loop->iteration }}</td>
                             <td>{{ $member->name }}</td>
                             <td>{{ $member->email }}</td>
                             <td>{{ $member->phone }}</td>
@@ -55,15 +55,15 @@
         // });
         const restore = (id) => {
             swal({
-                    title: "Are you sure?",
-                    // text: "Your are approving loan ",
-                    type: "warning",
-                    showCancelButton: true,
-                    confirmButtonColor: "#DD6B55",
-                    confirmButtonText: "Yes, restore member!",
-                    cancelButtonText: "No, cancel plx!",
-                    closeOnConfirm: false,
-                    closeOnCancel: false },
+                title: "Are you sure?",
+                // text: "Your are approving loan ",
+                type: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#2bdd6e",
+                confirmButtonText: "Yes, restore member!",
+                cancelButtonText: "No, cancel plx!",
+                closeOnConfirm: false,
+                closeOnCancel: false },
                 function (isConfirm) {
                     if (isConfirm) {
                         $.post('/restore_member/', {
@@ -84,7 +84,7 @@
                     text: "Once deleted, this member canot be recovered",
                     type: "warning",
                     showCancelButton: true,
-                    confirmButtonColor: "#DD6B55",
+                    confirmButtonColor: "#2bdd6e",
                     confirmButtonText: "Yes, Permanently delete member!",
                     cancelButtonText: "No, cancel plx!",
                     closeOnConfirm: true,

@@ -25,7 +25,7 @@ class FileManipulationCommand extends Command
 
     public function isFirstTimeMakingAComponent()
     {
-        $namespace = str(config('livewire.class_namespace', 'App\\Http\\Livewire'))->replaceFirst(app()->getNamespace(), '');
+        $namespace = str(config('livewire.class_namespace'))->replaceFirst(app()->getNamespace(), '');
 
         $livewireFolder = app_path($namespace->explode('\\')->implode(DIRECTORY_SEPARATOR));
 
@@ -52,8 +52,6 @@ EOT;
             if(PHP_OS_FAMILY == 'Linux') exec('xdg-open https://github.com/livewire/livewire');
 
             $this->line("Thanks! Means the world to me!");
-        } else {
-            $this->line("I understand, but am not going to pretend I'm not sad about it...");
         }
     }
 }

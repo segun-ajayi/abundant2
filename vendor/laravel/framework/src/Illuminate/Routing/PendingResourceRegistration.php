@@ -149,6 +149,12 @@ class PendingResourceRegistration
      */
     public function middleware($middleware)
     {
+        $middleware = Arr::wrap($middleware);
+
+        foreach ($middleware as $key => $value) {
+            $middleware[$key] = (string) $value;
+        }
+
         $this->options['middleware'] = $middleware;
 
         return $this;
@@ -196,6 +202,19 @@ class PendingResourceRegistration
     }
 
     /**
+     * Define the callable that should be invoked on a missing model exception.
+     *
+     * @param  callable  $callback
+     * @return $this
+     */
+    public function missing($callback)
+    {
+        $this->options['missing'] = $callback;
+
+        return $this;
+    }
+
+    /**
      * Indicate that the resource routes should be scoped using the given binding fields.
      *
      * @param  array  $fields
@@ -204,6 +223,19 @@ class PendingResourceRegistration
     public function scoped(array $fields = [])
     {
         $this->options['bindingFields'] = $fields;
+
+        return $this;
+    }
+
+    /**
+     * Define which routes should allow "trashed" models to be retrieved when resolving implicit model bindings.
+     *
+     * @param  array  $methods
+     * @return \Illuminate\Routing\PendingResourceRegistration
+     */
+    public function withTrashed(array $methods = [])
+    {
+        $this->options['trashed'] = $methods;
 
         return $this;
     }

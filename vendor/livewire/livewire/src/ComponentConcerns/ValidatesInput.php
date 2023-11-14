@@ -2,19 +2,25 @@
 
 namespace Livewire\ComponentConcerns;
 
-use function Livewire\str;
-use Livewire\ObjectPrybar;
+use function collect;
+use function count;
+use function explode;
+use Livewire\Wireable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\MessageBag;
+use function Livewire\{str, invade};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Livewire\Exceptions\MissingRulesException;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Livewire\HydrationMiddleware\HydratePublicProperties;
 
 trait ValidatesInput
 {
     protected $errorBag;
+
+    protected $withValidatorCallback;
 
     public function getErrorBag()
     {
@@ -95,6 +101,14 @@ trait ValidatesInput
         return [];
     }
 
+    protected function getValidationCustomValues()
+    {
+        if (method_exists($this, 'validationCustomValues')) return $this->validationCustomValues();
+        if (property_exists($this, 'validationCustomValues')) return $this->validationCustomValues;
+
+        return [];
+    }
+
     public function rulesForModel($name)
     {
         if (empty($this->getRules())) return collect();
@@ -141,6 +155,25 @@ trait ValidatesInput
         return ! $this->hasRuleFor($dotNotatedProperty);
     }
 
+    public function withValidator($callback)
+    {
+        $this->withValidatorCallback = $callback;
+
+        return $this;
+    }
+
+    protected function checkRuleMatchesProperty($rules, $data)
+    {
+        collect($rules)
+            ->keys()
+            ->each(function($ruleKey) use ($data) {
+                throw_unless(
+                    array_key_exists($this->beforeFirstDot($ruleKey), $data),
+                    new \Exception('No property found for validation: ['.$ruleKey.']')
+                );
+            });
+    }
+
     public function validate($rules = null, $messages = [], $attributes = [])
     {
         [$rules, $messages, $attributes] = $this->providedOrGlobalRulesMessagesAndAttributes($rules, $messages, $attributes);
@@ -149,9 +182,26 @@ trait ValidatesInput
             $this->getDataForValidation($rules)
         );
 
+        $this->checkRuleMatchesProperty($rules, $data);
+
+        $ruleKeysToShorten = $this->getModelAttributeRuleKeysToShorten($data, $rules);
+
+        $data = $this->unwrapDataForValidation($data);
+
         $validator = Validator::make($data, $rules, $messages, $attributes);
 
-        $this->shortenModelAttributes($data, $rules, $validator);
+        if ($this->withValidatorCallback) {
+            call_user_func($this->withValidatorCallback, $validator);
+
+            $this->withValidatorCallback = null;
+        }
+
+        $this->shortenModelAttributesInsideValidator($ruleKeysToShorten, $validator);
+
+        $customValues = $this->getValidationCustomValues();
+        if (!empty($customValues)) {
+            $validator->addCustomValues($customValues);
+        }
 
         $validatedData = $validator->validate();
 
@@ -164,32 +214,78 @@ trait ValidatesInput
     {
         [$rules, $messages, $attributes] = $this->providedOrGlobalRulesMessagesAndAttributes($rules, $messages, $attributes);
 
-        // If the field is "items.0.foo", validation rules for "items.*.foo", "items.*", etc. are applied.
-        $rulesForField = collect($rules)->filter(function ($rule, $fullFieldKey) use ($field) {
-            return str($field)->is($fullFieldKey);
-        })->toArray();
+        // Loop through rules and swap any wildcard '*' with keys from field, then filter down to only
+        // rules that match the field, but return the rules without wildcard characters replaced,
+        // so that custom attributes and messages still work as they need wildcards to work.
+        $rulesForField = collect($rules)
+            ->filter(function($value, $rule) use ($field) {
+                if(! str($field)->is($rule)) {
+                    return false;
+                }
+
+                $fieldArray = str($field)->explode('.');
+                $ruleArray = str($rule)->explode('.');
+
+                for($i = 0; $i < count($fieldArray); $i++) {
+                    if(isset($ruleArray[$i]) && $ruleArray[$i] === '*') {
+                        $ruleArray[$i] = $fieldArray[$i];
+                    }
+                }
+
+                $rule = $ruleArray->join('.');
+
+                return $field === $rule;
+            });
+
+        $ruleForField = $rulesForField->keys()->first();
+
+        $rulesForField = $rulesForField->toArray();
 
         $ruleKeysForField = array_keys($rulesForField);
 
-        $data = $this->prepareForValidation(
-            $this->getDataForValidation($rules)
-        );
+        $data = $this->getDataForValidation($rules);
+
+        $data = $this->prepareForValidation($data);
+
+        $this->checkRuleMatchesProperty($rules, $data);
+
+        $ruleKeysToShorten = $this->getModelAttributeRuleKeysToShorten($data, $rules);
+
+        $data = $this->unwrapDataForValidation($data);
+
+        // If a matching rule is found, then filter collections down to keys specified in the field,
+        // while leaving all other data intact. If a key isn't specified and instead there is a
+        // wildcard '*' then leave that whole collection intact. This ensures that any rules
+        // that depend on other fields/ properties still work.
+        if ($ruleForField) {
+            $ruleArray = str($ruleForField)->explode('.');
+            $fieldArray = str($field)->explode('.');
+
+            $data = $this->filterCollectionDataDownToSpecificKeys($data, $ruleArray, $fieldArray);
+        }
 
         $validator = Validator::make($data, $rulesForField, $messages, $attributes);
 
-        $this->shortenModelAttributes($data, $rulesForField, $validator);
+        if ($this->withValidatorCallback) {
+            call_user_func($this->withValidatorCallback, $validator);
+
+            $this->withValidatorCallback = null;
+        }
+
+        $this->shortenModelAttributesInsideValidator($ruleKeysToShorten, $validator);
+
+        $customValues = $this->getValidationCustomValues();
+        if (!empty($customValues)) {
+            $validator->addCustomValues($customValues);
+        }
 
         try {
             $result = $validator->validate();
         } catch (ValidationException $e) {
             $messages = $e->validator->getMessageBag();
-            $target = new ObjectPrybar($e->validator);
 
-            $target->setProperty(
-                'messages',
-                $messages->merge(
-                    $this->errorBagExcept($ruleKeysForField)
-                )
+            invade($e->validator)->messages = $messages->merge(
+                $this->errorBagExcept($ruleKeysForField)
             );
 
             throw $e;
@@ -200,18 +296,57 @@ trait ValidatesInput
         return $result;
     }
 
-    protected function shortenModelAttributes($data, $rules, $validator)
+    protected function filterCollectionDataDownToSpecificKeys($data, $ruleKeys, $fieldKeys)
+    {
+        // Filter data down to specified keys in collections, but leave all other data intact
+        if (count($ruleKeys)) {
+            $ruleKey = $ruleKeys->shift();
+            $fieldKey = $fieldKeys->shift();
+
+            if ($fieldKey == '*') {
+                // If the specified field has a '*', then loop through the collection and keep the whole collection intact.
+                foreach ($data as $key => $value) {
+                    $data[$key] = $this->filterCollectionDataDownToSpecificKeys($value, $ruleKeys, $fieldKeys);
+                }
+            } else {
+                // Otherwise filter collection down to a specific key
+                $keyData = $data[$fieldKey] ?? null;
+
+                if ($ruleKey == '*') {
+                    $data = [];
+                }
+
+                $data[$fieldKey] = $this->filterCollectionDataDownToSpecificKeys($keyData, $ruleKeys, $fieldKeys);
+            }
+        }
+
+        return $data;
+    }
+
+    protected function getModelAttributeRuleKeysToShorten($data, $rules)
     {
         // If a model ($foo) is a property, and the validation rule is
         // "foo.bar", then set the attribute to just "bar", so that
         // the validation message is shortened and more readable.
+
+        $toShorten = [];
+
         foreach ($rules as $key => $value) {
             $propertyName = $this->beforeFirstDot($key);
 
             if ($data[$propertyName] instanceof Model) {
-                if (str($key)->snake()->replace('_', ' ')->is($validator->getDisplayableAttribute($key))) {
-                    $validator->addCustomAttributes([$key => $validator->getDisplayableAttribute($this->afterFirstDot($key))]);
-                }
+                $toShorten[] = $key;
+            }
+        }
+
+        return $toShorten;
+    }
+
+    protected function shortenModelAttributesInsideValidator($ruleKeys, $validator)
+    {
+        foreach ($ruleKeys as $key) {
+            if (str($key)->snake()->replace('_', ' ')->is($validator->getDisplayableAttribute($key))) {
+                $validator->addCustomAttributes([$key => $validator->getDisplayableAttribute($this->afterFirstDot($key))]);
             }
         }
     }
@@ -230,17 +365,14 @@ trait ValidatesInput
 
     protected function getDataForValidation($rules)
     {
-        $properties = $this->getPublicPropertiesDefinedBySubClass();
+        return $this->getPublicPropertiesDefinedBySubClass();
+    }
 
-        collect($rules)->keys()
-            ->each(function ($ruleKey) use ($properties) {
-                $propertyName = $this->beforeFirstDot($ruleKey);
-
-                throw_unless(array_key_exists($propertyName, $properties), new \Exception('No property found for validation: ['.$ruleKey.']'));
-            });
-
-        return collect($properties)->map(function ($value) {
-            if ($value instanceof Collection || $value instanceof EloquentCollection) return $value->toArray();
+    protected function unwrapDataForValidation($data)
+    {
+        return collect($data)->map(function ($value) {
+            if ($value instanceof Wireable) return $value->toLivewire();
+            else if ($value instanceof Collection || $value instanceof EloquentCollection || $value instanceof Model) return $value->toArray();
 
             return $value;
         })->all();

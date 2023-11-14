@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file, in reverse chronological order by release.
 
+## 2.0.7 - 2022-03-14
+
+### Fixed
+
+- [#102](https://github.com/Bacon/BaconQrCode/issues/102) Fix internal path for CompositeEye
+
+## 2.0.6 - 2022-02-04
+
+### Fixed
+
+- Added tests back into release package.
+
+## 2.0.5 - 2022-01-31
+
+### Fixed
+
+- [#70](https://github.com/Bacon/BaconQrCode/issues/79) Fix Imagick backend gradient generation.
+
 ## 2.0.2 - 2020-07-30
 
 ### Changed

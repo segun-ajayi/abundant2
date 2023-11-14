@@ -1,21 +1,11 @@
 <?php
+
 /**
- * Mockery
+ * Mockery (https://docs.mockery.io/)
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://github.com/padraic/mockery/blob/master/LICENSE
- * If you did not receive a copy of the license and are unable to
- * obtain it through the world-wide-web, please send an email
- * to padraic@php.net so we can send you a copy immediately.
- *
- * @category   Mockery
- * @package    Mockery
- * @copyright  Copyright (c) 2010 Pádraic Brady (http://blog.astrumfutura.com)
- * @license    http://github.com/padraic/mockery/blob/master/LICENSE New BSD License
+ * @copyright https://github.com/mockery/mockery/blob/HEAD/COPYRIGHT.md
+ * @license   https://github.com/mockery/mockery/blob/HEAD/LICENSE BSD 3-Clause License
+ * @link      https://github.com/mockery/mockery for the canonical source repository
  */
 
 use Mockery\ClosureWrapper;
@@ -214,7 +204,7 @@ class Mockery
      */
     public static function fetchMock($name)
     {
-        return self::$_container->fetchMock($name);
+        return self::getContainer()->fetchMock($name);
     }
 
     /**
@@ -398,7 +388,7 @@ class Mockery
     /**
      * Return instance of CONTAINS matcher.
      *
-     * @param array ...$args
+     * @param mixed $args
      *
      * @return \Mockery\Matcher\Contains
      */
@@ -662,10 +652,22 @@ class Mockery
             return array('...');
         }
 
-        return array(
-            'class' => get_class($object),
-            'properties' => self::extractInstancePublicProperties($object, $nesting)
+        $defaultFormatter = function ($object, $nesting) {
+            return array('properties' => self::extractInstancePublicProperties($object, $nesting));
+        };
+
+        $class = get_class($object);
+
+        $formatter = self::getConfiguration()->getObjectFormatter($class, $defaultFormatter);
+
+        $array = array(
+          'class' => $class,
+          'identity' => '#' . md5(spl_object_hash($object))
         );
+
+        $array = array_merge($array, $formatter($object, $nesting));
+
+        return $array;
     }
 
     /**
@@ -685,7 +687,11 @@ class Mockery
         foreach ($properties as $publicProperty) {
             if (!$publicProperty->isStatic()) {
                 $name = $publicProperty->getName();
-                $cleanedProperties[$name] = self::cleanupNesting($object->$name, $nesting);
+                try {
+                    $cleanedProperties[$name] = self::cleanupNesting($object->$name, $nesting);
+                } catch (\Exception $exception) {
+                    $cleanedProperties[$name] = $exception->getMessage();
+                }
             }
         }
 
@@ -870,7 +876,7 @@ class Mockery
             $parRefMethod = $parRef->getMethod($method);
             $parRefMethodRetType = Reflector::getReturnType($parRefMethod, true);
 
-            if ($parRefMethodRetType !== null) {
+            if ($parRefMethodRetType !== null && $parRefMethodRetType !== 'mixed') {
                 $nameBuilder = new MockNameBuilder();
                 $nameBuilder->addPart('\\' . $newMockName);
                 $mock = self::namedMock($nameBuilder->build(), $parRefMethodRetType);

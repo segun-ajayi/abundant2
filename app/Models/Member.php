@@ -17,6 +17,17 @@ class Member extends Model
     protected $dates = ['deleted_at'];
     protected $guarded = [];
 
+    public function getUnpaidDividend() {
+        return $this->dividend()->where('status', 'unpaid')->get();
+    }
+
+    public function dividend() {
+        return $this->hasMany(Dividend::class);
+    }
+
+    public function getDividend($year) {
+        return $this->dividend()->where('year', $year)->get();
+    }
 
     public function share() {
         return $this->hasOne(Share::class);
@@ -68,7 +79,11 @@ class Member extends Model
         return $this->hasMany(Utility::class);
     }
 
-    public function getLoan() {
+    public function getLoan($year = NULL) {
+        if ($year) {
+            $sav = $this->loans()->whereYear('created_at', $year)->sum('amount');
+            return $sav;
+        }
         $loan = $this->loans()->where('status', 1)->get();
         if ($loan->isEmpty()) {
             return 0;
@@ -127,7 +142,20 @@ class Member extends Model
         return $now->diffInMonths($last);
     }
 
-    public function getAccumulatedInterest() {
+    public function getAccumulatedInterest($year = NULL) {
+        if ($year) {
+            $sav = $this->loans()->whereYear('created_at', $year)->get();
+            $rep = 0;
+            $int = 0;
+            foreach ($sav as $item) {
+                $rep = $rep + $item->repayments()->whereYear('date', $year)->sum('credit');
+                $int = $int + $item->repayments()->whereYear('date', $year)->sum('interest');
+            }
+            return  [
+                'totalRepayments' => $rep,
+                'totalInterest' => $int
+            ];
+        }
         $balance = $this->getLoan();
         $rate = $this->getLoanRate();
         $multi = $this->getLastPay();
@@ -174,23 +202,98 @@ class Member extends Model
         return $sh[0]->repayments->sortByDesc('created_at')->take(5);
     }
 
-    public function getSaving() {
+    public function getSaving($year = NULL, $cum = 1) {
+        if ($year) {
+            if ($this->savings) {
+                if ($cum === 1) {
+                    $sav = $this->savings->history()->whereYear('date', '<=', $year)->sum('credit');
+                    $deb = $this->savings->history()->whereYear('date', '<=', $year)->sum('debit');
+                } else {
+                    $sav = $this->savings->history()->whereYear('date', $year)->sum('credit');
+                    $deb = $this->savings->history()->whereYear('date', $year)->sum('debit');
+                }
+            } else {
+                $sav = 0;
+                $deb = 0;
+            }
+            return  $sav - $deb;
+        }
         $savings = $this->savings;
         return $savings ? $savings->balance : 0;
     }
 
-    public function getsSaving() {
+    public function getsSaving($year = NULL, $cum = 1) {
+        if ($year) {
+            if ($this->specialSavings) {
+                if ($cum === 1) {
+                    $sav = $this->specialSavings->history()->whereYear('date', '<=',$year)->sum('credit');
+                    $deb = $this->specialSavings->history()->whereYear('date', '<=',$year)->sum('debit');
+                } else {
+                    $sav = $this->specialSavings->history()->whereYear('date', $year)->sum('credit');
+                    $deb = $this->specialSavings->history()->whereYear('date', $year)->sum('debit');
+                }
+            } else {
+                $sav = 0;
+                $deb = 0;
+            }
+
+            return  $sav - $deb;
+        }
         $savings = $this->specialSavings;
         return $savings ? $savings->balance : 0;
     }
 
-    public function getShare() {
+    public function getUtility($year = NULL) {
+        if ($year) {
+            if ($this->utilities) {
+                $sav = $this->utilities()->whereYear('date', $year)->sum('amount');
+            } else {
+                $sav = 0;
+            }
+            return  $sav;
+        }
+        $savings = $this->utilities()->sum('amount');
+        return $savings ?? 0;
+    }
+
+    public function getFine($year = NULL) {
+        if ($year) {
+            if ($this->fines) {
+                $sav = $this->fines()->whereYear('date', $year)->sum('credit');
+            } else {
+                $sav = 0;
+            }
+            return  $sav;
+        }
+        $savings = $this->fines()->sum('credit');
+        return $savings ?? 0;
+    }
+
+    public function getShare($year = NULL, $cum = 1) {
+        if ($year) {
+            if ($this->share) {
+                if ($cum === 1) {
+                    $sav = $this->share->history()->whereYear('date', '<=',$year)->sum('credit');
+                    $deb = $this->share->history()->whereYear('date', '<=',$year)->sum('debit');
+                } else {
+                    $sav = $this->share->history()->whereYear('date', $year)->sum('credit');
+                    $deb = $this->share->history()->whereYear('date', $year)->sum('debit');
+                }
+            } else {
+                $sav = 0;
+                $deb = 0;
+            }
+
+            return  $sav - $deb;
+        }
         $share = $this->share;
         return $share ? $share->balance : 0;
     }
 
-    public function getBuilding() {
-        $year = Carbon::parse(Setting::find(1)->pDate)->format('Y');
+    public function getBuilding($year = NULL) {
+        if (!$year) {
+            $year = Carbon::parse(Setting::find(1)->pDate)->format('Y');
+        }
         $building = $this->building;
         if (!$building) {
             $building = $this->building()->create([
@@ -260,11 +363,11 @@ class Member extends Model
     public function creditSpecial($saving, $mode) {
         $spe = $this->specialSavings();
         if ($spe->doesntExist()) {
-            $this->specialSavings()->create([
+            $spe = $this->specialSavings()->create([
                 'balance' => 0
             ]);
         }
-        $spe = $this->specialSavings;
+//        $spe = $this->specialSavings;
         $spe->balance = $spe->balance + $saving;
         $spe->save();
         $spe->history()->create([
@@ -348,6 +451,9 @@ class Member extends Model
     }
 
     public function creditLoan($loan, $interest, $mode) {
+        if (!$interest) {
+            $interest = 0;
+        }
         $loans = $this->loans()->where('status', 1)->get();
         if ($loans->isEmpty()) {
             return;

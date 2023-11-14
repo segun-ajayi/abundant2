@@ -7,7 +7,7 @@ class Limit
     /**
      * The rate limit signature key.
      *
-     * @var mixed|string
+     * @var mixed
      */
     public $key;
 
@@ -35,7 +35,7 @@ class Limit
     /**
      * Create a new limit instance.
      *
-     * @param  mixed|string  $key
+     * @param  mixed  $key
      * @param  int  $maxAttempts
      * @param  int  $decayMinutes
      * @return void
@@ -56,6 +56,18 @@ class Limit
     public static function perMinute($maxAttempts)
     {
         return new static('', $maxAttempts);
+    }
+
+    /**
+     * Create a new rate limit using minutes as decay time.
+     *
+     * @param  int  $decayMinutes
+     * @param  int  $maxAttempts
+     * @return static
+     */
+    public static function perMinutes($decayMinutes, $maxAttempts)
+    {
+        return new static('', $maxAttempts, $decayMinutes);
     }
 
     /**
@@ -95,7 +107,7 @@ class Limit
     /**
      * Set the key of the rate limit.
      *
-     * @param  string  $key
+     * @param  mixed  $key
      * @return $this
      */
     public function by($key)

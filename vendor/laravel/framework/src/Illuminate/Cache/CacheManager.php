@@ -11,7 +11,8 @@ use Illuminate\Support\Arr;
 use InvalidArgumentException;
 
 /**
- * @mixin \Illuminate\Contracts\Cache\Repository
+ * @mixin \Illuminate\Cache\Repository
+ * @mixin \Illuminate\Contracts\Cache\LockProvider
  */
 class CacheManager implements FactoryContract
 {
@@ -57,7 +58,7 @@ class CacheManager implements FactoryContract
     {
         $name = $name ?: $this->getDefaultDriver();
 
-        return $this->stores[$name] = $this->get($name);
+        return $this->stores[$name] ??= $this->resolve($name);
     }
 
     /**
@@ -69,17 +70,6 @@ class CacheManager implements FactoryContract
     public function driver($driver = null)
     {
         return $this->store($driver);
-    }
-
-    /**
-     * Attempt to get the store from the local cache.
-     *
-     * @param  string  $name
-     * @return \Illuminate\Contracts\Cache\Repository
-     */
-    protected function get($name)
-    {
-        return $this->stores[$name] ?? $this->resolve($name);
     }
 
     /**
@@ -237,21 +227,11 @@ class CacheManager implements FactoryContract
      */
     protected function createDynamodbDriver(array $config)
     {
-        $dynamoConfig = [
-            'region' => $config['region'],
-            'version' => 'latest',
-            'endpoint' => $config['endpoint'] ?? null,
-        ];
-
-        if ($config['key'] && $config['secret']) {
-            $dynamoConfig['credentials'] = Arr::only(
-                $config, ['key', 'secret', 'token']
-            );
-        }
+        $client = $this->newDynamodbClient($config);
 
         return $this->repository(
             new DynamoDbStore(
-                new DynamoDbClient($dynamoConfig),
+                $client,
                 $config['table'],
                 $config['attributes']['key'] ?? 'key',
                 $config['attributes']['value'] ?? 'value',
@@ -259,6 +239,28 @@ class CacheManager implements FactoryContract
                 $this->getPrefix($config)
             )
         );
+    }
+
+    /**
+     * Create new DynamoDb Client instance.
+     *
+     * @return \Aws\DynamoDb\DynamoDbClient
+     */
+    protected function newDynamodbClient(array $config)
+    {
+        $dynamoConfig = [
+            'region' => $config['region'],
+            'version' => 'latest',
+            'endpoint' => $config['endpoint'] ?? null,
+        ];
+
+        if (isset($config['key'], $config['secret'])) {
+            $dynamoConfig['credentials'] = Arr::only(
+                $config, ['key', 'secret', 'token']
+            );
+        }
+
+        return new DynamoDbClient($dynamoConfig);
     }
 
     /**
@@ -316,7 +318,7 @@ class CacheManager implements FactoryContract
      * Get the cache connection configuration.
      *
      * @param  string  $name
-     * @return array
+     * @return array|null
      */
     protected function getConfig($name)
     {
@@ -356,7 +358,7 @@ class CacheManager implements FactoryContract
      */
     public function forgetDriver($name = null)
     {
-        $name = $name ?? $this->getDefaultDriver();
+        $name ??= $this->getDefaultDriver();
 
         foreach ((array) $name as $cacheName) {
             if (isset($this->stores[$cacheName])) {
@@ -375,7 +377,7 @@ class CacheManager implements FactoryContract
      */
     public function purge($name = null)
     {
-        $name = $name ?? $this->getDefaultDriver();
+        $name ??= $this->getDefaultDriver();
 
         unset($this->stores[$name]);
     }

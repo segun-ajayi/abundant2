@@ -13,7 +13,7 @@
                     @csrf
                     <div class="form-group">
                         <label for="memberId">Member ID</label>
-                        <input type="number" class="form-control" id="memberId" name="member_id" value="{{ $member->member_id }}">
+                        <input type="number" class="form-control" id="memberId" value="{{ $member->member_id }}" name="member_id" placeholder="{{ 'Available IDs: ' . $ava }}">
                     </div>
                     <div class="form-group">
                         <label for="name">Name</label>

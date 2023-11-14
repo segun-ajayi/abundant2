@@ -1,8 +1,16 @@
 <?php
-use \ParagonIE\ConstantTime\Base64;
+declare(strict_types=1);
+namespace ParagonIE\ConstantTime\Tests;
 
-class Base64Test extends PHPUnit\Framework\TestCase
+use InvalidArgumentException;
+use PHPUnit\Framework\TestCase;
+use ParagonIE\ConstantTime\Base64;
+use RangeException;
+
+class Base64Test extends TestCase
 {
+    use CanonicalTrait;
+
     /**
      * @covers Base64::encode()
      * @covers Base64::decode()
@@ -75,5 +83,49 @@ class Base64Test extends PHPUnit\Framework\TestCase
                 \base64_decode($str)
             );
         }
+    }
+
+    public function testIssue22()
+    {
+        // Non-strict: ok
+        Base64::decode('00==');
+
+        // Strict: not ok
+        $this->expectException(RangeException::class);
+        Base64::decode('00==', true);
+    }
+
+    public function testDecodeNoPadding()
+    {
+        Base64::decodeNoPadding('0w');
+        $this->expectException(InvalidArgumentException::class);
+        Base64::decodeNoPadding('0w==');
+    }
+
+    /**
+     * @dataProvider canonicalDataProvider
+     */
+    public function testNonCanonical(string $input)
+    {
+        $w = Base64::encodeUnpadded($input);
+        Base64::decode($w);
+        Base64::decode($w, true);
+
+        // Mess with padding:
+        $x = $this->increment($w);
+        Base64::decode($x);
+
+        // Should throw in strict mode:
+        $this->expectException(RangeException::class);
+        Base64::decode($x, true);
+    }
+
+    protected function getNextChar(string $c): string
+    {
+        return strtr(
+            $c,
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/',
+            'BCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/A'
+        );
     }
 }

@@ -15,6 +15,13 @@ class Attendance extends Model
         return $this->belongsToMany(Member::class);
     }
 
+    public function getMonth() {
+        $arr = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'May', 6 => 'Jun', 7 => 'Jul',
+                    8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'];
+//        dd($arr[$this->month]);
+        return $arr[$this->month];
+    }
+
     public function markAttendance($mark, $member) {
         if ($mark == 'true') {
             $this->members()->attach($member);

@@ -3053,7 +3053,6 @@ input[type="button"].btn-block {
   top: 100%;
   left: 0;
   z-index: 1000;
-  display: none;
   float: left;
   min-width: 10rem;
   padding: 0 0;

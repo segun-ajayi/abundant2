@@ -3,6 +3,7 @@
 namespace Laravel\Jetstream\Http\Livewire;
 
 use Illuminate\Contracts\Auth\StatefulGuard;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -44,11 +45,12 @@ class DeleteUserForm extends Component
     /**
      * Delete the current user.
      *
+     * @param  \Illuminate\Http\Request  $request
      * @param  \Laravel\Jetstream\Contracts\DeletesUsers  $deleter
      * @param  \Illuminate\Contracts\Auth\StatefulGuard  $auth
-     * @return void
+     * @return \Illuminate\Routing\Redirector|\Illuminate\Http\RedirectResponse
      */
-    public function deleteUser(DeletesUsers $deleter, StatefulGuard $auth)
+    public function deleteUser(Request $request, DeletesUsers $deleter, StatefulGuard $auth)
     {
         $this->resetErrorBag();
 
@@ -62,7 +64,12 @@ class DeleteUserForm extends Component
 
         $auth->logout();
 
-        return redirect('/');
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        return redirect(config('fortify.redirects.logout') ?? '/');
     }
 
     /**

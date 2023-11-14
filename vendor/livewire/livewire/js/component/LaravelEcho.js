@@ -30,14 +30,20 @@ export default function () {
                         event_name,
                     ] = event_parts
 
-                    if (['channel', 'private'].includes(channel_type)) {
+                    if (['channel', 'private', 'encryptedPrivate'].includes(channel_type)) {
                         Echo[channel_type](channel).listen(event_name, e => {
                             store.emit(event, e)
                         })
                     } else if (channel_type == 'presence') {
-                        Echo.join(channel)[event_name](e => {
-                            store.emit(event, e)
-                        })
+                        if (['here', 'joining', 'leaving'].includes(event_name)) {
+                            Echo.join(channel)[event_name](e => {
+                                store.emit(event, e)
+                            })
+                        }else{
+                            Echo.join(channel).listen(event_name, e => {
+                                store.emit(event, e)
+                            })
+                        }
                     } else if (channel_type == 'notification') {
                         Echo.private(channel).notification(notification => {
                             store.emit(event, notification)

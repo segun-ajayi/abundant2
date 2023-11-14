@@ -2,10 +2,12 @@
 
 namespace App\Http\Livewire\Member;
 
+use App\Models\Dividend;
 use App\Models\Loan;
 use App\Models\Member;
 use App\Models\Setting;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -20,25 +22,66 @@ class Index extends Component
     public $fineAmount, $fineReason, $payMethod, $utilityType, $price, $value, $gt, $withdrawFrom;
     public $loanType, $duration, $amount, $surety = [], $members, $isOpenWithdraw = false;
     public $user, $savings, $loanRepay, $loanInterest, $shares, $building, $specialSavings, $username;
+    public $dividend, $mode, $year, $unPaidDividend = false, $searchResults = [];
 
     public function mount($member) {
         $this->members = Member::all();
         $this->user = Auth::user();
         $this->member = $member;
+        if ($this->member->getUnpaidDividend()->count() > 0) {
+            $div = $this->member->getUnpaidDividend();
+            $this->dividend = $div[0]->amount;
+            $this->year = $div[0]->year;
+            $this->unPaidDividend = true;
+        } else {
+            $this->reset('dividend', 'mode', 'year', 'unPaidDividend');
+        }
         $this->loan = $this->member->loans()->where('status', 1)->first();
         $this->emit('refreshComponents', $this->member);
     }
 
     public function refreshComponents() {
-        dd('dfdfs');
         $this->emit('refreshComponents', $this->member);
     }
 
-    public function updatedGt($value) {
-        $mem = Member::where('member_id', $value)->first();
-        if ($mem) {
-            $this->mount($mem);
+    public function payDividend() {
+        $this->validate([
+            'dividend' => 'required',
+        ]);
+        if (!$this->mode) {
+            $this->mode = 'savings';
         }
+
+        if ($this->mode === 'share') {
+            $this->member->creditShare($this->dividend, $this->year . ' Dividend');
+        } elseif ($this->mode === 'savings') {
+            $this->member->creditSavings($this->dividend, $this->year . ' Dividend');
+        } elseif ($this->mode === 'special') {
+            $this->member->creditSpecial($this->dividend, $this->year . ' Dividend');
+        }
+
+        Dividend::where('year', $this->year)
+            ->where('member_id', $this->member->id)
+            ->update([
+            'mode' => $this->mode,
+            'status' => 'paid',
+            'pDate' => Carbon::now()->format('Y-m-d H:i:s')
+        ]);
+        $this->reset('unPaidDividend', 'dividend', 'mode', 'year');
+        $this->emit('toast', 'suc', 'Dividend paid successfully!');
+        $this->emit('refreshComponents', $this->member);
+    }
+
+    public function clearResult() {
+        $this->searchResults = [];
+    }
+
+    public function updatedGt($value) {
+        if ($value === '') {
+            $this->clearResult();
+            return;
+        }
+        $this->searchResults = Member::where('member_id', $value)->orWhere('name', 'LIKE', '%' . $value . '%')->take(5)->get();
     }
 
     public function reverseloan() {
@@ -235,14 +278,14 @@ class Index extends Component
                     $this->emit('toast', 'err', 'Special savings insufficient');
                     return;
                 }
-                $this->member->debitSpecial($amount, "Loan Repayment");
+//                $this->member->debitSpecial($amount, "Loan Repayment");
             }
             if ($this->payMethod == 'savings') {
                 if ($this->member->getsaving() < $total) {
                     $this->emit('toast', 'err', 'Savings insufficient');
                     return;
                 }
-                $this->member->debitSavings($amount, "Loan Repayment");
+//                $this->member->debitSavings($amount, "Loan Repayment");
             }
             if ($amount > $lo) {
                 $am = $amount - $lo;

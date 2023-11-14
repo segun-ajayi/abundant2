@@ -30,7 +30,7 @@ class DatabaseTransactionRecord
      *
      * @param  string  $connection
      * @param  int  $level
-     * @retunr void
+     * @return void
      */
     public function __construct($connection, $level)
     {
@@ -57,7 +57,7 @@ class DatabaseTransactionRecord
     public function executeCallbacks()
     {
         foreach ($this->callbacks as $callback) {
-            call_user_func($callback);
+            $callback();
         }
     }
 

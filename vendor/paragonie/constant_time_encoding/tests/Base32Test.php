@@ -1,7 +1,12 @@
 <?php
-use \ParagonIE\ConstantTime\Base32;
+declare(strict_types=1);
+namespace ParagonIE\ConstantTime\Tests;
 
-class Base32Test extends PHPUnit\Framework\TestCase
+use InvalidArgumentException;
+use PHPUnit\Framework\TestCase;
+use ParagonIE\ConstantTime\Base32;
+
+class Base32Test extends TestCase
 {
     /**
      * @covers Base32::encode()
@@ -46,5 +51,32 @@ class Base32Test extends PHPUnit\Framework\TestCase
                 );
             }
         }
+    }
+
+    public function canonProvider()
+    {
+        return [
+            ['me', 'mf'],
+            ['mfra', 'mfrb'],
+            ['mfrgg', 'mfrgh'],
+            ['mfrggza', 'mfrggzb']
+        ];
+    }
+
+    /**
+     * @dataProvider canonProvider
+     */
+    public function testCanonicalBase32(string $canonical, string $munged)
+    {
+        Base32::decode($canonical);
+        $this->expectException(\RangeException::class);
+        Base32::decodeNoPadding($munged);
+    }
+
+    public function testDecodeNoPadding()
+    {
+        Base32::decodeNoPadding('aaaqe');
+        $this->expectException(InvalidArgumentException::class);
+        Base32::decodeNoPadding('aaaqe===');
     }
 }

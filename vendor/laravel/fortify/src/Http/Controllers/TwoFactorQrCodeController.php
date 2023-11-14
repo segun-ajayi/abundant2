@@ -15,6 +15,13 @@ class TwoFactorQrCodeController extends Controller
      */
     public function show(Request $request)
     {
-        return response()->json(['svg' => $request->user()->twoFactorQrCodeSvg()]);
+        if (is_null($request->user()->two_factor_secret)) {
+            return [];
+        }
+
+        return response()->json([
+            'svg' => $request->user()->twoFactorQrCodeSvg(),
+            'url' => $request->user()->twoFactorQrCodeUrl(),
+        ]);
     }
 }

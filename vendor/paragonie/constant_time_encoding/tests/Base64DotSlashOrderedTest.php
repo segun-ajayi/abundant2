@@ -1,8 +1,16 @@
 <?php
-use \ParagonIE\ConstantTime\Base64DotSlashOrdered;
+declare(strict_types=1);
+namespace ParagonIE\ConstantTime\Tests;
 
-class Base64DotSlashOrderedTest extends PHPUnit\Framework\TestCase
+use InvalidArgumentException;
+use PHPUnit\Framework\TestCase;
+use ParagonIE\ConstantTime\Base64DotSlashOrdered;
+use RangeException;
+
+class Base64DotSlashOrderedTest extends TestCase
 {
+    use CanonicalTrait;
+
     /**
      * @covers Base64DotSlashOrdered::encode()
      * @covers Base64DotSlashOrdered::decode()
@@ -30,5 +38,39 @@ class Base64DotSlashOrderedTest extends PHPUnit\Framework\TestCase
                 );
             }
         }
+    }
+
+    public function testDecodeNoPadding()
+    {
+        Base64DotSlashOrdered::decodeNoPadding('..');
+        $this->expectException(InvalidArgumentException::class);
+        Base64DotSlashOrdered::decodeNoPadding('..==');
+    }
+
+    /**
+     * @dataProvider canonicalDataProvider
+     */
+    public function testNonCanonical(string $input)
+    {
+        $w = Base64DotSlashOrdered::encodeUnpadded($input);
+        Base64DotSlashOrdered::decode($w);
+        Base64DotSlashOrdered::decode($w, true);
+
+        // Mess with padding:
+        $x = $this->increment($w);
+        Base64DotSlashOrdered::decode($x);
+
+        // Should throw in strict mode:
+        $this->expectException(RangeException::class);
+        Base64DotSlashOrdered::decode($x, true);
+    }
+
+    protected function getNextChar(string $c): string
+    {
+        return strtr(
+            $c,
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789./',
+            'BCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789./A'
+        );
     }
 }

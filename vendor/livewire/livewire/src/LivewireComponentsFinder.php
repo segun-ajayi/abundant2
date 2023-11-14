@@ -23,7 +23,9 @@ class LivewireComponentsFinder
 
     public function find($alias)
     {
-        return $this->getManifest()[$alias] ?? null;
+        $manifest = $this->getManifest();
+
+        return $manifest[$alias] ?? $manifest["{$alias}.index"] ?? null;
     }
 
     public function getManifest()
@@ -62,6 +64,10 @@ class LivewireComponentsFinder
 
     public function getClassNames()
     {
+        if (! $this->files->exists($this->path)) {
+            return collect();
+        }
+
         return collect($this->files->allFiles($this->path))
             ->map(function (SplFileInfo $file) {
                 return app()->getNamespace().

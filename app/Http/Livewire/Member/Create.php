@@ -20,6 +20,7 @@ class Create extends Component
     public function mount() {
         $this->members = Member::all();
         $av = DB::select('select distinct member_id+1 as s from members where member_id + 1 not in(select distinct member_id from members)');
+//        dd($av);
         foreach ($av as $a) {
             if (!$this->av) {
                 $this->av = $a->s;

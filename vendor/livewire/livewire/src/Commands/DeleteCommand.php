@@ -6,15 +6,15 @@ use Illuminate\Support\Facades\File;
 
 class DeleteCommand extends FileManipulationCommand
 {
-    protected $signature = 'livewire:delete {name} {--inline} {--force}';
+    protected $signature = 'livewire:delete {name} {--inline} {--force} {--test}';
 
     protected $description = 'Delete a Livewire component';
 
     public function handle()
     {
         $this->parser = new ComponentParser(
-            config('livewire.class_namespace', 'App\\Http\\Livewire'),
-            config('livewire.view_path', resource_path('views/livewire')),
+            config('livewire.class_namespace'),
+            config('livewire.view_path'),
             $this->argument('name')
         );
 
@@ -29,17 +29,34 @@ class DeleteCommand extends FileManipulationCommand
         }
 
         $inline = $this->option('inline');
+        $test = $this->option('test');
 
         $class = $this->removeClass($force);
         if (! $inline) $view = $this->removeView($force);
+        if ($test) $test = $this->removeTest($force);
 
         $this->refreshComponentAutodiscovery();
 
         $this->line("<options=bold,reverse;fg=yellow> COMPONENT DESTROYED </> 🦖💫\n");
         $class && $this->line("<options=bold;fg=yellow>CLASS:</> {$this->parser->relativeClassPath()}");
         if (! $inline) $view && $this->line("<options=bold;fg=yellow>VIEW:</>  {$this->parser->relativeViewPath()}");
+        if ($test) $test && $this->line("<options=bold;fg=yellow>Test:</>  {$this->parser->relativeTestPath()}");
     }
 
+    protected function removeTest($force = false)
+    {
+        $testPath = $this->parser->testPath();
+
+        if (! File::exists($testPath) && ! $force) {
+            $this->line("<options=bold,reverse;fg=red> WHOOPS-IE-TOOTLES </> 😳 \n");
+            $this->line("<fg=red;options=bold>Test doesn't exist:</> {$this->parser->relativeTestPath()}");
+            return false;
+        }
+
+        File::delete($testPath);
+
+        return $testPath;
+    }
     protected function removeClass($force = false)
     {
         $classPath = $this->parser->classPath();

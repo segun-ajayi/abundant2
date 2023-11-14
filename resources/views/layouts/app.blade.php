@@ -106,6 +106,10 @@
                             <a class="nav-link" href="{{ route('analysis') }}">
                                 <i class="nav-icon icon-graph"></i> Monthly Analysis</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('dividendReport') }}">
+                                <i class="nav-icon icon-list"></i> Dividend Report</a>
+                        </li>
                         <li class="nav-item nav-dropdown">
                             <a class="nav-link nav-dropdown-toggle" href="#">
                                 <i class="nav-icon icon-settings"></i> Settings</a>
@@ -135,6 +139,10 @@
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ route('index') }}">
                                     <i class="nav-icon icon-people"></i> Excos</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ route('dividend') }}">
+                                    <i class="nav-icon icon-calculator"></i> Dividend</a>
                             </li>
                         @endif
                     </ul>
