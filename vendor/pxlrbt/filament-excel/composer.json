@@ -1,0 +1,44 @@
+{
+    "name": "pxlrbt/filament-excel",
+    "description": "Supercharged Excel exports for Filament Resources",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "phpspreadsheet",
+        "phpexcel",
+        "filament",
+        "laravel-filament",
+        "actions"
+    ],
+    "authors": [
+        {
+            "name": "Dennis Koch",
+            "email": "info@pixelarbeit.de"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "filament/filament": "^3.0.0-stable",
+        "maatwebsite/excel": "^3.1",
+        "anourvalar/eloquent-serialize": "^1.2"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "pxlrbt\\FilamentExcel\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "pxlrbt\\FilamentExcel\\FilamentExcelServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "pint": "vendor/bin/pint"
+    },
+    "prefer-stable": true
+}
