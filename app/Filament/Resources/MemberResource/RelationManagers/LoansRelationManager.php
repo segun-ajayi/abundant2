@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MemberResource\RelationManagers;
 
+use App\Models\Loan;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -17,7 +18,7 @@ class LoansRelationManager extends RelationManager
 
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
-        return count($ownerRecord->getActiveloans);
+        return count($ownerRecord->loans);
     }
 
     public function form(Form $form): Form
@@ -34,24 +35,31 @@ class LoansRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('amount')
-            ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 1))
+            ->modifyQueryUsing(fn (Builder $query) => $query->orderBy('approved_on', 'desc'))
             ->columns([
-                Tables\Columns\TextColumn::make('approved_on')->date()->label('Date'),
+                Tables\Columns\TextColumn::make('approved_on')->date()->label('Date')
+                    ->action(
+                        fn (Loan $record) => $this->dispatch('loadRepayments', id: $record->id),
+                    ),
                 Tables\Columns\TextColumn::make('amount')->numeric()->prefix(config('app.currency')),
                 Tables\Columns\TextColumn::make('duration'),
                 Tables\Columns\TextColumn::make('balance')->numeric()->prefix(config('app.currency')),
                 Tables\Columns\TextColumn::make('lpDate')->date()->label('Last Payment'),
                 Tables\Columns\TextColumn::make('referer.name')->label('Referrer 1'),
-                Tables\Columns\TextColumn::make('referer2.name')->label('Referrer 2'),
+                Tables\Columns\TextColumn::make('status'),
+//                Tables\Columns\TextColumn::make('referer2.name')->label('Referrer 2'),
             ])
+            ->striped()
+            ->defaultPaginationPageOption(3)
+            ->paginated([3, 5, 'all'])
             ->filters([
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+//                Tables\Actions\CreateAction::make(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+//                Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

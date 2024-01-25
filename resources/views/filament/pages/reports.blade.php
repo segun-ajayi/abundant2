@@ -8,7 +8,7 @@
 
             <x-filament-panels::form.actions
                 :actions="$this->getAct()"
-                :full-width="true"
+{{--                :full-width="true"--}}
             />
         </x-filament-panels::form>
 

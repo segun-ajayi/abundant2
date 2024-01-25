@@ -24,6 +24,8 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         'name',
         'email',
         'password',
+        'role',
+        'member_id'
     ];
 
     public function canAccessPanel(Panel $panel): bool
@@ -33,7 +35,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
 
     public function getFilamentAvatarUrl(): ?string
     {
-        return $this->member->pix;
+        return Member::find($this->member_id)->pix;
     }
 
     /**

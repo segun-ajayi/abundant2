@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MemberResource\RelationManagers;
 
+use App\Models\BuildingHistory;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -13,6 +14,12 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class BuildingRelationManager extends RelationManager
 {
     protected static string $relationship = 'buildingHistory';
+
+
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
 
     public function form(Form $form): Form
     {
@@ -29,7 +36,7 @@ class BuildingRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('balance')
             ->columns([
-                Tables\Columns\TextColumn::make('date')->date()->sortable(),
+                Tables\Columns\TextColumn::make('date')->date(),
                 Tables\Columns\TextColumn::make('credit')->numeric()->prefix(config('app.currency')),
                 Tables\Columns\TextColumn::make('debit')->numeric()->prefix(config('app.currency')),
 //                Tables\Columns\TextColumn::make('balance')->numeric()->prefix(config('app.currency')),
@@ -40,11 +47,26 @@ class BuildingRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+//                Tables\Actions\CreateAction::make(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+//                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function (BuildingHistory $record) {
+                        $cre = $record->credit;
+                        $deb = $record->debit;
+                        $building = $record->building;
+                        $bal = $building->balance;
+                        if ($cre) {
+                            $building->update([
+                                'balance' => $bal - $cre
+                            ]);
+                        } else {
+                            $building->update([
+                                'balance' => $bal + $deb
+                            ]);
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

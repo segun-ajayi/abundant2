@@ -10,20 +10,32 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 class SharesOverview extends BaseWidget
 {
     public Member $record;
+
+    public function goTo(string $url)
+    {
+        $this->dispatch('open-modal', id: $url);
+    }
+
     protected function getStats(): array
     {
         $per = $this->record->sharePercent();
         $last = $this->record->lastSavings();
         $loanPer = $this->record->loanPercent();
 
+        $lastLoan = $this->record->getLastLoanPay();
+
         $savings = $this->record->getSavingH()->pluck('credit')->toArray();
 
-        if ($this->record->getLoan()) {
+//        if ($this->record->getLoan()) {
             return [
                 Stat::make('Shares', "₦" . number_format($this->record->share?->balance, 2, '.', ','))
                     ->description($per . '% of minimum shares.')
 //                    ->descriptionIcon('heroicon-m-arrow-trending-down')
-                    ->color($per < 100 ? 'warning' : 'success'),
+                    ->color($per < 100 ? 'warning' : 'success')
+                    ->extraAttributes([
+                            'class' => 'cursor-pointer',
+                            'wire:click' => "goTo('share')",
+                        ]),
                 Stat::make('Building', "₦" . number_format($this->record->getBuilding(Carbon::now()->format('Y')), 2, '.', ','))
                     ->description("Last year: ₦" . number_format($this->record->getBuilding(Carbon::now()->subYear()), 2, '.', ','))
 //                ->descriptionIcon('heroicon-m-arrow-trending-down')
@@ -32,34 +44,16 @@ class SharesOverview extends BaseWidget
                     ->description($last['amount'] ? "Last posting on " . Carbon::parse($last['date'])->format('M, Y') . ": ₦" . number_format($last['amount'], 2, '.', ',') : '')
 //                ->descriptionIcon('heroicon-m-arrow-trending-up')
                     ->color($this->record->lastSavings()['status'] ? 'success' : 'danger')
-                    ->chart($savings),
-                Stat::make('Loan', "₦" . number_format($this->record->getLoan(), 2, '.', ','))
-                    ->description(ceil($loanPer) . '% paid')
+                    ->chart($savings)
+                    ->extraAttributes([
+                        'class' => 'cursor-pointer',
+                        'wire:click' => "goTo('withdrawSavings')",
+                    ]),
+                Stat::make('Loan', $this->record->getLoan() ? "₦" . number_format($this->record->getLoan(), 2, '.', ',') : 'No Active Loan')
+                    ->description(isset($lastLoan['credit']) ? "Last posting on " . Carbon::parse($lastLoan['date'])->format('M, Y') . ": ₦" . number_format($lastLoan['credit'] + $lastLoan['interest'], 2, '.', ',') : '')
 //                    ->descriptionIcon('heroicon-m-arrow-trending-up')
                     ->color('success'),
             ];
-        } else {
-            return [
-                Stat::make('Shares', "₦" . number_format($this->record->share?->balance, 2, '.', ','))
-                    ->description($per . '% of minimum shares.')
-                    ->descriptionIcon('heroicon-m-arrow-trending-down')
-                    ->color('warning'),
-                Stat::make('Building', "₦" . number_format($this->record->getBuilding(Carbon::now()->format('Y')), 2, '.', ','))
-                    ->description("Last year: ₦" . number_format($this->record->getBuilding(Carbon::now()->subYear()), 2, '.', ','))
-//                ->descriptionIcon('heroicon-m-arrow-trending-down')
-                    ->color('danger'),
-                Stat::make('Savings', "₦" . number_format($this->record->getSaving(), 2, '.', ','))
-                    ->description($last['amount'] ? "Last posting on " . Carbon::parse($last['date'])->format('M, Y') . ": ₦" . number_format($last['amount'], 2, '.', ',') : '')
-//                ->descriptionIcon('heroicon-m-arrow-trending-up')
-                    ->color($this->record->lastSavings()['status'] ? 'success' : 'danger')
-                    ->chart($savings),
-//                Stat::make('Loan', "₦" . number_format($this->record->getLoan(), 2, '.', ','))
-//                    ->description('3% increase')
-//                    ->descriptionIcon('heroicon-m-arrow-trending-up')
-//                    ->color('success'),
-            ];
-        }
-
 
     }
 }

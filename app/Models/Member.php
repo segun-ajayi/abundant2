@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use function PHPUnit\Framework\isEmpty;
 
 class Member extends Model
 {
@@ -124,6 +125,14 @@ class Member extends Model
         return $this->hasMany(Loan::class, 'member_id')->where('status', 1);
     }
 
+    public function getLastLoan() {
+        $loan = $this->loans;
+        if (isEmpty($this->loans)) {
+            return [];
+        }
+        return $this->loans->latest();
+    }
+
     public function loanRepayments() {
         return $this->hasMany(LoanRepayment::class)->orderBy('date', 'desc');
     }
@@ -193,6 +202,10 @@ class Member extends Model
         $last = Carbon::createFromFormat('Y-m-d', $loan[0]->lpDate);
         $now = Carbon::createFromFormat('Y-m-d', Setting::find(1)->pDate);
         return $now->diffInMonths($last);
+    }
+
+    public function getLastLoanPay() {
+        return $this->loanRepayments->first() ? $this->loanRepayments->first() : [];
     }
 
     public function getAccumulatedInterest($year = NULL) {
@@ -459,6 +472,7 @@ class Member extends Model
             'date' => Setting::find(1)->pDate,
             'credit' => $build,
             'mode' => $mode,
+            'member_id' => $this->id,
             'entered_by' => Auth::id()
         ]);
     }
@@ -477,6 +491,7 @@ class Member extends Model
             'date' => Setting::find(1)->pDate,
             'credit' => $share,
             'mode' => $mode,
+            'member_id' => $this->id,
             'entered_by' => Auth::id()
         ]);
     }
@@ -495,6 +510,7 @@ class Member extends Model
             'date' => Setting::find(1)->pDate,
             'debit' => $saving,
             'mode' => $mode,
+            'member_id' => $this->id,
             'entered_by' => Auth::id()
         ]);
     }
@@ -536,7 +552,8 @@ class Member extends Model
             'credit' => $loan,
             'interest' => $interest,
             'mode' => $mode,
-            'entered_by' => Auth::id()
+            'entered_by' => Auth::id(),
+            'member_id' => $this->id
         ]);
         return true;
     }
@@ -562,7 +579,7 @@ class Member extends Model
     }
 
     public function lastSavings() {
-        $last = ShareHistory::where('member_id', $this->id)->orderby('created_at', 'desc')->first();
+        $last = SavingHistory::where('member_id', $this->id)->orderby('created_at', 'desc')->first();
         if ($last) {
             if ($last->credit) {
                 return [
@@ -587,33 +604,11 @@ class Member extends Model
     }
 
     public function workSavings() {
-        $member = Member::all();
-//        foreach($members as $member) {
-//            if ($member->share) {
-//                foreach($member->share->history as $item) {
-//                    $item->update([
-//                        'member_id' => $member->id
-//                    ]);
-//                }
-//
-//                $c = 0;
-//                $prev = 0;
-//                foreach($member->shareRecord->sortBy('date') as $item) {
-//                    if (!$c) {
-//                        $prev = $item->credit - $item->debit;
-//                        $item->update([
-//                            'balance' => $prev
-//                        ]);
-//                    } else {
-//                        $item->update([
-//                            'balance' => $prev += ($item->credit - $item->debit)
-//                        ]);
-//                    }
-//                    $c++;
-//                }
-//            }
-            if ($member->savings) {
-                foreach($member->savings->history as $item) {
+        $members = Member::where('id', '>', 205)->get();
+//        dd($members);
+        foreach($members as $member) {
+            if ($member->share) {
+                foreach($member->share->history as $item) {
                     $item->update([
                         'member_id' => $member->id
                     ]);
@@ -621,7 +616,7 @@ class Member extends Model
 
                 $c = 0;
                 $prev = 0;
-                foreach($member->savingRecord->sortBy('date') as $item) {
+                foreach($member->shareRecord->sortBy('date') as $item) {
                     if (!$c) {
                         $prev = $item->credit - $item->debit;
                         $item->update([
@@ -635,6 +630,29 @@ class Member extends Model
                     $c++;
                 }
             }
+//            if ($member->savings) {
+//                foreach($member->savings->history as $item) {
+//                    $item->update([
+//                        'member_id' => $member->id
+//                    ]);
+//                }
+//
+//                $c = 0;
+//                $prev = 0;
+//                foreach($member->savingRecord->sortBy('date') as $item) {
+//                    if (!$c) {
+//                        $prev = $item->credit - $item->debit;
+//                        $item->update([
+//                            'balance' => $prev
+//                        ]);
+//                    } else {
+//                        $item->update([
+//                            'balance' => $prev += ($item->credit - $item->debit)
+//                        ]);
+//                    }
+//                    $c++;
+//                }
+//            }
 
 
 //        foreach($members as $member) {
@@ -657,7 +675,7 @@ class Member extends Model
 //                    ]);
 //                }
 //            }
-//        }
+        }
     }
 
     public function postFine($data) {
@@ -702,7 +720,7 @@ class Member extends Model
     public function buyUtil(Array $data) {
 
         $ret = $this->utilities()->insertGetId([
-            'member_id' => $data['member_id'],
+            'member_id' => $this->member_id,
             'amount' => $data['amount'],
             'mode' => $data['mode'],
             'date' => Setting::find(1)->pDate,

@@ -11,7 +11,7 @@ class Setting extends Model
     use HasFactory;
     protected $guarded = [];
 
-    public function setMonth($data) {
+    public function setMonth(array $data) {
 
         $year = Carbon::now()->format('Y');
 

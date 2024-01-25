@@ -3,24 +3,26 @@
 namespace App\Filament\Pages;
 
 use App\Exports\MonthlyReportExport;
+use App\Exports\YearlyReportExport;
+use App\Models\Dividend;
 use App\Models\Member;
 use App\Tables\Columns\ReportColumn;
 use Carbon\Carbon;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Actions\Action as FormAction;
+use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Filament\Tables\Columns\Summarizers\Summarizer;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\Builder as Bully;
-use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 
@@ -36,52 +38,94 @@ class Reports extends Page implements HasForms, HasTable
 
     public ?string $month, $year, $type;
 
-    public $start, $end;
+    public Carbon $start, $end;
 
     public $members;
 
     public string $viewPage = 'form';
+    private bool $visible = false;
 
-    protected function getHeaderActions(): array
-    {
-        return [
-            Action::make('excel')
-                ->label('Export')
-                ->action(fn () => $this->exportMonthly())
-                ->color('success')
-                ->icon('heroicon-o-table-cells'),
-            Action::make('pdf')
-                ->label('Export')
-                ->action(fn () => $this->exportMonthly('pdf'))
-                ->icon('heroicon-o-document')
-                ->color('danger')
-        ];
-    }
+
+//    protected function getHeaderActions(): array
+//    {
+//        return [
+//            Action::make('excel')
+//                ->label('Export')
+//                ->action(fn () => $this->exportMonthly())
+//                ->color('success')
+//                ->icon('heroicon-o-table-cells'),
+////                ->visible($this->visible),
+//            Action::make('pdf')
+//                ->label('Export')
+//                ->action(fn () => $this->exportMonthly('pdf'))
+//                ->icon('heroicon-o-document')
+//                ->color('danger')
+////                ->visible($this->visible),
+//        ];
+//    }
 
     private function exportMonthly (?string $type = null)
     {
-        if ($type == 'pdf') {
-            return Excel::download(new MonthlyReportExport($this->start, $this->end), 'report.pdf', \Maatwebsite\Excel\Excel::MPDF);
+        $period = $this->type;
+        if ($period === 'dividend') {
+            dd($period);
         }
-        return Excel::download(new MonthlyReportExport($this->start, $this->end), 'report.xlsx');
+
+        if ($period === 'year') {
+            $add = (int) $this->start->format('Y');
+            if ($type == 'pdf') {
+                return Excel::download(new YearlyReportExport($this->start), $add . ' report.pdf', \Maatwebsite\Excel\Excel::MPDF);
+            }
+            return Excel::download(new YearlyReportExport($this->start), $add . ' report.xlsx');
+        }
+
+        if ($period === 'month') {
+            if ($type == 'pdf') {
+                return Excel::download(new MonthlyReportExport($this->start, $this->end), $this->start->format('F, Y') . ' report.pdf', \Maatwebsite\Excel\Excel::MPDF);
+            }
+            return Excel::download(new MonthlyReportExport($this->start, $this->end), $this->start->format('F, Y') . ' report.xlsx');
+        }
+
     }
 
-    protected function getCreateFormAction(): Action
+    protected function getCreateFormAction(): array
     {
-        return Action::make('create')
-            ->label(__('filament-panels::resources/pages/create-record.form.actions.create.label'))
-            ->submit('create')
-            ->keyBindings(['mod+s']);
+        return [
+            Action::make('create')
+                ->label('Generate')
+                ->submit('create')
+                ->hidden($this->visible),
+        ];
     }
 
     public function getAct(): array
     {
-        return [$this->getCreateFormAction()];
+        return $this->getCreateFormAction();
     }
 
     public function create() {
         $data = $this->form->getState();
-        $month = $data['month'];
+        if (!isset($data['month']) && !isset($data['type'])) {
+            Notification::make()
+                ->title('Please fill in necessary details!')
+                ->color('danger')
+                ->send();
+            return;
+        }
+
+        if ($data['type'] === 'month' && !isset($data['month'])) {
+            $data['month'] = (int) Carbon::now()->format('n') - 1;
+        }
+
+        if ($data['type'] === 'year' && !isset($data['year'])) {
+            $data['year'] = (int) Carbon::now()->format('Y');
+        }
+
+        if ($data['type'] === 'dividend' && !isset($data['year'])) {
+            $data['year'] = (int) Carbon::now()->format('Y') - 1;
+        }
+
+
         $year = $data['year'];
         $type = $data['type'];
 
@@ -89,13 +133,20 @@ class Reports extends Page implements HasForms, HasTable
             $year = (int) Carbon::now()->format('Y');
         }
 
-        if (!$type) {
-            $type = 'monthly';
-        }
-        $this->viewPage = 'table';
+        if ($type === 'month') {
+            $this->viewPage = 'table';
+            $month = $data['month'];
 
-        $this->start = Carbon::parse($month . '/16/' . $year)->startOfMonth();
-        $this->end = Carbon::parse($month . '/16/' . $year)->endOfMonth();
+            $this->start = Carbon::parse($month . '/16/' . $year)->startOfMonth();
+            $this->end = Carbon::parse($month . '/16/' . $year)->endOfMonth();
+        } elseif ($type === 'year') {
+            $this->viewPage = 'table';
+
+            $this->start = Carbon::parse('10/16/' . $year)->startOfYear();
+            $this->end = Carbon::parse('10/16/' . $year)->endOfYear();
+        } else {
+            return $this->redirect('/admin/dividends/' . $year);
+        }
     }
 
     public function table(Table $table): Table
@@ -192,6 +243,18 @@ class Reports extends Page implements HasForms, HasTable
         return $table
             ->defaultPaginationPageOption(25)
             ->query(Member::query()->orderBy('member_id'))
+            ->headerActions([
+                \Filament\Tables\Actions\Action::make('excel')
+                    ->label('Export')
+                    ->action(fn () => $this->exportMonthly())
+                    ->color('success')
+                    ->icon('heroicon-o-table-cells'),
+                \Filament\Tables\Actions\Action::make('pdf')
+                    ->label('Export')
+                    ->action(fn () => $this->exportMonthly('pdf'))
+                    ->icon('heroicon-o-document')
+                    ->color('danger')
+            ])
             ->columns($column)
             ->filters([
                 // ...
@@ -215,38 +278,50 @@ class Reports extends Page implements HasForms, HasTable
 
         return $form
                 ->schema([
-                    Section::make()
+                    Group::make()
                         ->schema([
-                            Select::make('month')
-                                ->options([
-                                    '1' => 'January',
-                                    '2' => 'February',
-                                    '3' => 'March',
-                                    '4' => 'April',
-                                    '5' => 'May',
-                                    '6' => 'June',
-                                    '7' => 'July',
-                                    '8' => 'August',
-                                    '9' => 'September',
-                                    '10' => 'October',
-                                    '11' => 'November',
-                                    '12' => 'December',
+                            Section::make('Monthly Report')
+                                ->schema([
+                                    Select::make('type')
+                                        ->options([
+                                            'month' => 'Monthly',
+                                            'year' => 'Yearly',
+                                            'dividend' => 'Dividend'
+                                        ])
+                                        ->default('month')
+                                        ->live()
+                                        ->native(false),
+                                    Select::make('month')
+                                        ->options([
+                                            '1' => 'January',
+                                            '2' => 'February',
+                                            '3' => 'March',
+                                            '4' => 'April',
+                                            '5' => 'May',
+                                            '6' => 'June',
+                                            '7' => 'July',
+                                            '8' => 'August',
+                                            '9' => 'September',
+                                            '10' => 'October',
+                                            '11' => 'November',
+                                            '12' => 'December',
+                                        ])
+                                        ->native(false)
+                                        ->searchable()
+                                        ->visible(fn (Get $get) => $get('type') === 'month'),
+                                    Select::make('year')
+                                        ->options(function (Get $get) use ($years) {
+                                            if ($get('type') === 'dividend') {
+                                                return Dividend::orderBy('year', 'desc')->pluck('year', 'id')->toArray();
+                                            } else {
+                                                return $years;
+                                            }
+                                        })
+                                        ->native(false)
+                                        ->visible(fn (Get $get) => $get('type') !== null),
                                 ])
-                                ->native(false)
-                                ->required()
-                                ->searchable(),
-                            Select::make('year')
-                                ->options($years)
-                                ->native(false),
-                            Select::make('type')
-                                ->options([
-                                    'month' => 'Monthly',
-                                    'year' => 'Yearly'
-                                ])
-                                ->default('month')
-                                ->native(false)
-                        ])->columns(3)
-//                        ->statePath('data')
-                ]);
+                        ])
+                        ->columnSpan(2)
+                ])->columns(3);
     }
 }

@@ -6,7 +6,6 @@ use App\Filament\Resources\MemberResource\Pages;
 use App\Filament\Resources\MemberResource\RelationManagers;
 use App\Filament\Resources\MemberResource\Widgets\LoanOverview;
 use App\Filament\Resources\MemberResource\Widgets\SavingsOverview;
-use App\Filament\Resources\MemberResource\Widgets\ShareOverview;
 use App\Filament\Resources\MemberResource\Widgets\SharesOverview;
 use App\Filament\Resources\MemberResource\Widgets\SpecialSavingsOverview;
 use App\Models\Member;
@@ -25,9 +24,9 @@ use Filament\Support\RawJs;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class MemberResource extends Resource
 {
@@ -36,6 +35,35 @@ class MemberResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
     protected static ?string $navigationGroup = 'Functions';
+
+    protected static ?string $recordTitleAttribute = 'name';
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['member_id', 'name', 'email'];
+    }
+
+    public static function getGlobalSearchResultUrl(Model $record): string
+    {
+        return MemberResource::getUrl('view', ['record' => $record]);
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'member_id' => $record->member_id,
+        ];
+    }
+
+    public static function getGlobalSearchResultActions(Model $record): array
+    {
+        return [
+            Action::make('edit')
+                ->url(static::getUrl('edit', ['record' => $record]))
+                ->icon('heroicon-m-pencil-square')
+                ->iconButton(),
+        ];
+    }
 
 
     protected static ?int $navigationSort = 1;
@@ -50,7 +78,7 @@ class MemberResource extends Resource
                             ->icon('heroicon-o-user')
                             ->schema([
                                 Forms\Components\TextInput::make('member_id')
-                                    ->required()
+//                                    ->required()
                                     ->numeric()
                                     ->placeholder(function () {
                                         $aa = '';
@@ -66,6 +94,7 @@ class MemberResource extends Resource
                                         return $aa;
                                     })
                                     ->unique('members', 'member_id')
+
                                     ->label('Member ID'),
                                 Forms\Components\TextInput::make('name')
                                     ->required()
@@ -75,17 +104,17 @@ class MemberResource extends Resource
                                     ->required(),
                                 Forms\Components\Select::make('sex')
                                     ->options([
-                                        'male' => 'Male',
-                                        'female' => 'Female'
+                                        'Male' => 'Male',
+                                        'Female' => 'Female'
                                     ])
                                     ->required()
                                     ->label('Gender'),
                                 Forms\Components\Select::make('marital')
                                     ->options([
-                                        'married' => 'Married',
-                                        'single' => 'Single',
-                                        'single parent' => 'Single Parent',
-                                        'widowed' => 'Widowed'
+                                        'Married' => 'Married',
+                                        'Single' => 'Single',
+                                        'Single parent' => 'Single Parent',
+                                        'Widowed' => 'Widowed'
                                     ])
                                     ->required()
                                     ->label('Marital Status'),
@@ -170,7 +199,7 @@ class MemberResource extends Resource
 
             ])
             ->filters([
-                //
+                Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
@@ -178,7 +207,13 @@ class MemberResource extends Resource
                     Tables\Actions\EditAction::make()
                         ->visible(fn (Member $record): bool => \Auth::user()->can('update', $record)),
                     Tables\Actions\DeleteAction::make()
-                        ->visible(fn (Member $record) => \Auth::user()->can('delete', $record)),
+                        ->before(function (Member $record) {
+                            $id = Member::withTrashed()->max('member_id') + 1;
+                            $record->update([
+                                'member_id' => $id
+                            ]);
+                        })
+                        ->visible(fn (Member $record) => \Auth::user()->can('delete', $record) && $record->is_closed),
                 ])
             ])
             ->bulkActions([
@@ -204,176 +239,180 @@ class MemberResource extends Resource
                                 ->grow(false),
                             Components\Grid::make(2)
                                 ->schema([
+                                    Components\Fieldset::make('Post')->schema([
+                                        Components\Actions::make([
+                                            Action::make('fine')
+                                                ->button()
+                                                ->color('danger')
+                                                ->form([
+                                                    Forms\Components\TextInput::make('amount')
+//                                                        ->numeric()
+                                                        ->required()
+                                                        ->mask(RawJs::make("\$money(\$input)"))
+                                                        ->prefix('₦'),
+                                                    Select::make('mode')
+                                                        ->label('Payment Mode')
+                                                        ->options([
+                                                            "cash" => "Cash",
+                                                            "savings" => "Savings",
+                                                            "bank" => "Bank Deposit",
+                                                            "transfer" => "Bank Transfer",
+                                                        ])
+                                                        ->required()
+                                                        ->native(false),
+                                                    Select::make('reason')
+                                                        ->label('Select Reason')
+                                                        ->options([
+                                                            "noise" => "Noise Making",
+                                                            "assault" => "Abuse & Assault",
+                                                            "late" => "Lateness",
+                                                            "absent" => "Absent",
+                                                            "other" => "Other",
+                                                        ])
+                                                        ->required()
+                                                        ->native(false),
+                                                ])
+                                                ->action(function ($data, Member $record) {
+                                                    $record->postFine($data);
+                                                    Notification::make()
+                                                        ->title("$record->name was fined successfully!")
+                                                        ->success()
+                                                        ->send();
+                                                }),
+
+                                            Action::make('utility')
+                                                ->button()
+                                                ->color('info')
+                                                ->form([
+                                                    Select::make('type')
+                                                        ->label('Type of utility')
+                                                        ->options([
+                                                            "loanForm" => "Loan Foam",
+                                                            "entryForm" => "Entry Form",
+                                                            "booklet" => "Booklet",
+                                                            "chair" => "Table/Chair Rental",
+                                                            "others" => "Others",
+                                                        ])
+                                                        ->required()
+                                                        ->native(false),
+
+                                                    Forms\Components\TextInput::make('amount')
+//                                                        ->numeric()
+                                                        ->required()
+                                                        ->mask(RawJs::make("\$money(\$input)"))
+                                                        ->prefix('₦'),
+
+                                                    Select::make('mode')
+                                                        ->label('Payment Mode')
+                                                        ->options([
+                                                            "cash" => "Cash",
+                                                            "savings" => "Savings",
+                                                            "bank" => "Bank Deposit",
+                                                        ])
+                                                        ->required()
+                                                        ->native(false),
+                                                ])
+                                                ->action(function ($data, Member $record) {
+                                                    $record->buyUtil($data);
+                                                    Notification::make()
+                                                        ->title("Utility bought successfully!")
+                                                        ->success()
+                                                        ->send();
+                                                }),
+
+                                            Action::make('post')
+                                                ->icon('heroicon-m-banknotes')
+                                                ->button()
+                                                ->color('success')
+                                                ->form([
+                                                    Forms\Components\TextInput::make('savings')
+                                                        ->mask(RawJs::make("\$money(\$input)"))
+                                                        ->prefix(config('app.currency')),
+                                                    Forms\Components\TextInput::make('loan')
+                                                        ->live(onBlur: true)
+                                                        ->afterStateUpdated(function (Set $set, $state, Member $record) {
+                                                            $accu = $record->getAccumulatedInterest();
+                                                            $old = (int)str_replace(',', '', $state);
+                                                            $set('interest', number_format($accu, 2));
+                                                            $set('loan', number_format($old - $accu, 2));
+                                                        })
+                                                        ->mask(RawJs::make("\$money(\$input)"))
+                                                        ->prefix(config('app.currency')),
+                                                    Forms\Components\TextInput::make('interest'),
+//                                            ->currencyMask(',', '.', 2),
+                                                    Forms\Components\TextInput::make('shares')
+                                                        ->mask(RawJs::make("\$money(\$input)"))
+                                                        ->prefix(config('app.currency')),
+                                                    Forms\Components\TextInput::make('building')
+                                                        ->mask(RawJs::make("\$money(\$input)"))
+                                                        ->prefix(config('app.currency')),
+                                                    Forms\Components\TextInput::make('special')
+                                                        ->mask(RawJs::make("\$money(\$input)"))
+                                                        ->prefix(config('app.currency')),
+                                                    Select::make('mode')
+                                                        ->label('Payment Mode')
+                                                        ->options(config('app.paymentMode'))
+                                                        ->required()
+                                                        ->default('bank')
+                                                        ->native(false),
+                                                ])
+                                                ->action(function ($data, Member $record) {
+                                                    $record->post($data);
+                                                }),
+                                            Action::make('loan')
+                                                ->button()
+                                                ->color('primary')
+                                                ->hidden(fn(Member $record) => $record->getLoan())
+                                                ->form([
+                                                    Forms\Components\TextInput::make('amount')
+                                                        ->mask(RawJs::make("\$money(\$input)"))
+                                                        ->prefix(config('app.currency'))
+//                                                        ->numeric()
+                                                        ->maxValue(fn (Member $record) => $record->getSaving() * 3),
+                                                    Forms\Components\Select::make('duration')
+                                                        ->options([
+                                                            '1' => '1 Month',
+                                                            '6' => '6 Months',
+                                                            '12' => '12 Months',
+                                                        ])
+                                                        ->required()->default('12')->native(false),
+                                                    Forms\Components\Select::make('type')
+                                                        ->options([
+                                                            'normal' => 'Normal',
+                                                            'emergency' => 'Emergency'
+                                                        ])
+                                                        ->required()->default('normal')->native(false),
+                                                    Forms\Components\Select::make('surety')
+                                                        ->multiple()
+                                                        ->searchable()
+                                                        ->minItems(2)
+                                                        ->maxItems(3)
+                                                        ->getSearchResultsUsing(fn (string $search): array => Member::where('name', 'like', "%{$search}%")->limit(50)->pluck('name', 'id')->toArray())
+                                                        ->getOptionLabelUsing(fn ($value): ?string => Member::find($value)?->name),
+                                                    Forms\Components\Select::make('mode')
+                                                        ->options(config('app.paymentMode'))
+                                                        ->required()->default('bank')->native(false),
+                                                ])
+                                                ->action(function ($data, Member $record) {
+                                                    $record->takeLoan($data);
+                                                })
+
+                                        ])->columns(1)->columnSpanFull()->fullWidth()->alignment(Alignment::Center),
+                                    ])->columnSpanFull(),
                                     Components\Group::make([
                                         Components\TextEntry::make('name'),
                                         Components\TextEntry::make('profession'),
                                         Components\TextEntry::make('address'),
                                     ]),
                                     Components\Group::make([
+                                        Components\TextEntry::make('phone')->label('Phone #'),
                                         Components\TextEntry::make('member_id')->label('Member ID'),
                                         Components\TextEntry::make('referrer'),
                                     ])
                                 ])
 
                         ])->from('lg'),
-                        Components\Fieldset::make('Post')->schema([
-                            Components\Actions::make([
-                                Action::make('fine')
-                                    ->button()
-                                    ->color('danger')
-                                    ->form([
-                                        Forms\Components\TextInput::make('amount')
-                                            ->numeric()
-                                            ->required()
-                                            ->prefix('₦'),
-                                        Select::make('mode')
-                                            ->label('Payment Mode')
-                                            ->options([
-                                                "cash" => "Cash",
-                                                "savings" => "Savings",
-                                                "bank" => "Bank Deposit",
-                                                "transfer" => "Bank Transfer",
-                                            ])
-                                            ->required()
-                                            ->native(false),
-                                        Select::make('reason')
-                                            ->label('Select Reason')
-                                            ->options([
-                                                "noise" => "Noise Making",
-                                                "assault" => "Abuse & Assault",
-                                                "late" => "Lateness",
-                                                "absent" => "Absent",
-                                                "other" => "Other",
-                                            ])
-                                            ->required()
-                                            ->native(false),
-                                    ])
-                                    ->action(function ($data, Member $record) {
-                                        $record->postFine($data);
-                                        Notification::make()
-                                            ->title("$record->name was fined successfully!")
-                                            ->success()
-                                            ->send();
-                                    }),
 
-                                Action::make('utility')
-                                    ->button()
-                                    ->color('info')
-                                    ->form([
-                                        Select::make('type')
-                                            ->label('Type of utility')
-                                            ->options([
-                                                "loanForm" => "Loan Foam",
-                                                "entryForm" => "Entry Form",
-                                                "booklet" => "Booklet",
-                                                "chair" => "Table/Chair Rental",
-                                                "others" => "Others",
-                                            ])
-                                            ->required()
-                                            ->native(false),
-
-                                        Forms\Components\TextInput::make('amount')
-                                            ->numeric()
-                                            ->required()
-                                            ->prefix('₦'),
-
-                                        Select::make('mode')
-                                            ->label('Payment Mode')
-                                            ->options([
-                                                "cash" => "Cash",
-                                                "savings" => "Savings",
-                                                "bank" => "Bank Deposit",
-                                            ])
-                                            ->required()
-                                            ->native(false),
-                                    ])
-                                    ->action(function ($data, Member $record) {
-                                        $record->buyUtil($data);
-                                        Notification::make()
-                                            ->title("Utility bought successfully!")
-                                            ->success()
-                                            ->send();
-                                    }),
-
-                                Action::make('post')
-                                    ->icon('heroicon-m-banknotes')
-                                    ->button()
-                                    ->color('success')
-                                    ->form([
-                                        Forms\Components\TextInput::make('savings')
-                                            ->mask(RawJs::make("\$money(\$input)"))
-                                            ->prefix(config('app.currency')),
-                                        Forms\Components\TextInput::make('loan')
-                                            ->live(onBlur: true)
-                                            ->afterStateUpdated(function (Set $set, $state, Member $record) {
-                                                $accu = $record->getAccumulatedInterest();
-                                                $old = (int)str_replace(',', '', $state);
-                                                $set('interest', number_format($accu, 2));
-                                                $set('loan', number_format($old - $accu, 2));
-                                            })
-                                            ->mask(RawJs::make("\$money(\$input)"))
-                                            ->prefix(config('app.currency')),
-                                        Forms\Components\TextInput::make('interest'),
-//                                            ->currencyMask(',', '.', 2),
-                                        Forms\Components\TextInput::make('shares')
-                                            ->mask(RawJs::make("\$money(\$input)"))
-                                            ->prefix(config('app.currency')),
-                                        Forms\Components\TextInput::make('building')
-                                            ->mask(RawJs::make("\$money(\$input)"))
-                                            ->prefix(config('app.currency')),
-                                        Forms\Components\TextInput::make('special')
-                                            ->mask(RawJs::make("\$money(\$input)"))
-                                            ->prefix(config('app.currency')),
-                                        Select::make('mode')
-                                            ->label('Payment Mode')
-                                            ->options(config('app.paymentMode'))
-                                            ->required()
-                                            ->default('bank')
-                                            ->native(false),
-                                    ])
-                                    ->action(function ($data, Member $record) {
-                                        $record->post($data);
-                                    }),
-                                Action::make('loan')
-                                    ->button()
-                                    ->color('primary')
-                                    ->hidden(fn(Member $record) => $record->getLoan())
-                                    ->form([
-                                        Forms\Components\TextInput::make('amount')
-//                                            ->mask(RawJs::make("\$money(\$input)"))
-                                            ->prefix(config('app.currency'))
-                                            ->numeric()
-                                            ->maxValue(fn (Member $record) => $record->getSaving() * 3),
-                                        Forms\Components\Select::make('duration')
-                                            ->options([
-                                                '1' => '1 Month',
-                                                '6' => '6 Months',
-                                                '12' => '12 Months',
-                                            ])
-                                            ->required()->default('12')->native(false),
-                                        Forms\Components\Select::make('type')
-                                            ->options([
-                                                'normal' => 'Normal',
-                                                'emergency' => 'Emergency'
-                                            ])
-                                            ->required()->default('normal')->native(false),
-                                        Forms\Components\Select::make('surety')
-                                            ->multiple()
-                                            ->searchable()
-                                            ->minItems(2)
-                                            ->maxItems(3)
-                                            ->getSearchResultsUsing(fn (string $search): array => Member::where('name', 'like', "%{$search}%")->limit(50)->pluck('name', 'id')->toArray())
-                                            ->getOptionLabelUsing(fn ($value): ?string => Member::find($value)?->name),
-                                        Forms\Components\Select::make('mode')
-                                            ->options(config('app.paymentMode'))
-                                            ->required()->default('bank')->native(false),
-                                    ])
-                                    ->action(function ($data, Member $record) {
-                                        $record->takeLoan($data);
-                                    })
-
-                            ])->columns(1)->columnSpanFull()->fullWidth()->alignment(Alignment::Center),
-                        ])->columnSpanFull(),
                     ]),
             ]);
     }
@@ -410,5 +449,13 @@ class MemberResource extends Resource
             SpecialSavingsOverview::class,
             LoanOverview::class
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
     }
 }

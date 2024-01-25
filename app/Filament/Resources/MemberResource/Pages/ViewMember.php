@@ -9,13 +9,16 @@ use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
-use Illuminate\Support\Str;
 
 class ViewMember extends ViewRecord
 {
+    public $amount;
+
     protected static string $resource = MemberResource::class;
+
+    protected static string $view = 'filament.resources.member-resource.pages.view-member';
 
     protected function getActions(): array
     {
@@ -41,14 +44,6 @@ class ViewMember extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        $years = [];
-        for ($year = Carbon::now()->format('Y'); $year >= 2019; $year--) {
-            $years[$year] = $year;
-        }
-        $setting = Setting::firstOrCreate(['id' => 1], [
-            'pDate' => carbon::now()->format('Y-m-d')
-        ]);
-        $currentMonth = Carbon::parse($setting->pDate)->format('F Y');
         $id = $this->record->member_id;
         $prev = Member::where('member_id', '<', $id)
             ->orderBy('member_id', 'desc')->limit(1)
@@ -59,141 +54,20 @@ class ViewMember extends ViewRecord
 
         if (!isset($prev[0])) {
             $ret = [
-                Action::make('Posting for: ' . $currentMonth)
-                    ->color('info')
-                    ->form([
-                        Select::make('month')
-                            ->label('Choose Month')
-                            ->options([
-                                "1" => "January",
-                                "2" => "February",
-                                "3" => "March",
-                                "4" => "April",
-                                "5" => "May",
-                                "6" => "June",
-                                "7" => "July",
-                                "8" => "August",
-                                "9" => "September",
-                                "10" => "October",
-                                "11" => "November",
-                                "12" => "December",
-                            ])
-                            ->default(Carbon::now()->format('m'))
-                            ->required()
-                            ->native(false),
-                        Select::make('year')
-                            ->label('Select Year')
-                            ->default(Carbon::now()->format('Y'))
-                            ->options($years)
-                            ->required()
-                            ->native(false),
-                    ])->action(fn ($data) => $setting->setMonth($data)),
-
                 Action::make('next')
                     ->color('success')
                     ->hidden(fn () => $next->isEmpty())
                     ->url('/admin/members/' . $next[0]?->id),
-
-                Action::make('search member')
-                    ->color('info')
-                    ->form([
-                        Select::make('search')
-                            ->options(Member::all()->pluck('name', 'id')->toArray())
-                            ->searchable()
-                            ->native(false)
-                    ])
-                    ->action(function ($data) {
-                        $this->redirect('/admin/members/' . $data['search']);
-                    }),
-
-//            Action::make('work')
-//                ->color('success')
-//                ->action(fn () => $this->record->workSavings()),
             ];
         } elseif (!isset($next[0])) {
             $ret = [
-                Action::make('Posting for: ' . $currentMonth)
-                    ->color('info')
-                    ->form([
-                        Select::make('month')
-                            ->label('Choose Month')
-                            ->options([
-                                "1" => "January",
-                                "2" => "February",
-                                "3" => "March",
-                                "4" => "April",
-                                "5" => "May",
-                                "6" => "June",
-                                "7" => "July",
-                                "8" => "August",
-                                "9" => "September",
-                                "10" => "October",
-                                "11" => "November",
-                                "12" => "December",
-                            ])
-                            ->default(Carbon::now()->format('m'))
-                            ->required()
-                            ->native(false),
-                        Select::make('year')
-                            ->label('Select Year')
-                            ->default(Carbon::now()->format('Y'))
-                            ->options($years)
-                            ->required()
-                            ->native(false),
-                    ])->action(fn ($data) => $setting->setMonth($data)),
-
                 Action::make('previous')
                     ->color('danger')
                     ->hidden(fn () => $prev->isEmpty())
                     ->url('/admin/members/' . $prev[0]->id),
-
-                Action::make('search member')
-                    ->color('info')
-                    ->form([
-                        Select::make('search')
-                            ->options(Member::all()->pluck('name', 'id')->toArray())
-                            ->searchable()
-                            ->native(false)
-                    ])
-                    ->action(function ($data) {
-                        $this->redirect('/admin/members/' . $data['search']);
-                    }),
-
-//            Action::make('work')
-//                ->color('success')
-//                ->action(fn () => $this->record->workSavings()),
             ];
         } else {
             $ret = [
-                Action::make('Posting for: ' . $currentMonth)
-                    ->color('info')
-                    ->form([
-                        Select::make('month')
-                            ->label('Choose Month')
-                            ->options([
-                                "1" => "January",
-                                "2" => "February",
-                                "3" => "March",
-                                "4" => "April",
-                                "5" => "May",
-                                "6" => "June",
-                                "7" => "July",
-                                "8" => "August",
-                                "9" => "September",
-                                "10" => "October",
-                                "11" => "November",
-                                "12" => "December",
-                            ])
-                            ->default(Carbon::now()->format('m'))
-                            ->required()
-                            ->native(false),
-                        Select::make('year')
-                            ->label('Select Year')
-                            ->default(Carbon::now()->format('Y'))
-                            ->options($years)
-                            ->required()
-                            ->native(false),
-                    ])->action(fn ($data) => $setting->setMonth($data)),
 
                 Action::make('previous')
                     ->color('danger')
@@ -204,18 +78,6 @@ class ViewMember extends ViewRecord
                     ->color('success')
                     ->hidden(fn () => $next->isEmpty())
                     ->url('/admin/members/' . $next[0]?->id),
-
-                Action::make('search member')
-                    ->color('info')
-                    ->form([
-                        Select::make('search')
-                            ->options(Member::all()->pluck('name', 'id')->toArray())
-                            ->searchable()
-                            ->native(false)
-                    ])
-                    ->action(function ($data) {
-                        $this->redirect('/admin/members/' . $data['search']);
-                    }),
 
 //            Action::make('work')
 //                ->color('success')
@@ -224,4 +86,56 @@ class ViewMember extends ViewRecord
         }
         return $ret;
     }
+
+    protected function getCreateFormAction(): array
+    {
+        return [
+            Action::make('withdraw')
+                ->label('Withdraw')
+                ->requiresConfirmation()
+                ->submit('withDrawSavings')
+        ];
+    }
+
+    public function getAct() {
+        return $this->getCreateFormAction();
+    }
+
+    public function withDrawSavings() {
+
+        $this->validate($this->rules());
+        $this->record->debitSavings($this->amount, 'withdrawal');
+
+        $this->dispatch('close-modal', id: 'withdrawSavings');
+
+        $this->reset('amount');
+
+        Notification::make()
+            ->title('Withdrawal successful!')
+            ->success()
+            ->send();
+    }
+
+    public function withDrawShares() {
+
+        $this->validate($this->rules());
+        $this->record->debitShare($this->amount, 'withdrawal');
+
+        $this->dispatch('close-modal', id: 'share');
+
+        $this->reset('amount');
+
+        Notification::make()
+            ->title('Withdrawal successful!')
+            ->success()
+            ->send();
+    }
+
+    private function rules() : array
+    {
+        return [
+            'amount' => 'required'
+        ];
+    }
+
 }

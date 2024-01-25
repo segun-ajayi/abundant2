@@ -20,18 +20,20 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class MonthlyReportExport implements FromCollection, WithCustomStartCell, WithHeadings, WithMapping,
+class YearlyReportExport implements FromCollection, WithCustomStartCell, WithHeadings, WithMapping,
     WithStrictNullComparison, WithColumnFormatting, ShouldAutoSize, WithStyles
 {
     private $members;
-    private $start;
-    private $end;
+    private Carbon $start;
+    private Carbon $end;
     private int $index = 0;
+    private $year;
 
-    public function __construct($start, $end)
+    public function __construct($year)
     {
-        $this->start = $start;
-        $this->end = $end;
+        $this->year = $year;
+        $this->start = Carbon::parse('12/16/' . $year)->startOfYear();
+        $this->end = Carbon::parse('12/16/' . $year)->endOfYear();
 
         $this->generateReport();
     }
@@ -49,15 +51,13 @@ class MonthlyReportExport implements FromCollection, WithCustomStartCell, WithHe
             'K' => NumberFormat::FORMAT_CURRENCY_NGN_INTEGER,
             'L' => NumberFormat::FORMAT_CURRENCY_NGN_INTEGER,
             'M' => NumberFormat::FORMAT_CURRENCY_NGN_INTEGER,
-            'N' => NumberFormat::FORMAT_CURRENCY_NGN_INTEGER,
-            'O' => NumberFormat::FORMAT_CURRENCY_NGN_INTEGER,
         ];
     }
 
 
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * @return \Illuminate\Support\Collection
+     */
     public function collection()
     {
         return $this->members;
@@ -69,67 +69,67 @@ class MonthlyReportExport implements FromCollection, WithCustomStartCell, WithHe
 
         foreach ($members as $member) {
 
-                if ($member->savings) {
-                    $savingsC = $member->savings->history->whereBetween('date', [$this->start, $this->end])->sum('credit');
-                    $savingsD = $member->savings->history->whereBetween('date', [$this->start, $this->end])->sum('debit');
+            if ($member->savings) {
+                $savingsC = $member->savings->history->whereBetween('date', [$this->start, $this->end])->sum('credit');
+                $savingsD = $member->savings->history->whereBetween('date', [$this->start, $this->end])->sum('debit');
+            } else {
+                $savingsD = 0;
+                $savingsC = 0;
+            }
+            if ($member->share) {
+                $shareC = $member->share->history->whereBetween('date', [$this->start, $this->end])->sum('credit');
+                $shareD = $member->share->history->whereBetween('date', [$this->start, $this->end])->sum('debit');
+            } else {
+                $shareD = 0;
+                $shareC = 0;
+            }
+            if ($member->specialSavings) {
+                $specialC = $member->specialSavings->history->whereBetween('date', [$this->start, $this->end])->sum('credit');
+                $specialD = $member->specialSavings->history->whereBetween('date', [$this->start, $this->end])->sum('debit');
+            } else {
+                $specialD = 0;
+                $specialC = 0;
+            }
+            if ($member->building) {
+                $buildingC = $member->building->history->whereBetween('date', [$this->start, $this->end])->sum('credit');
+                $buildingD = $member->building->history->whereBetween('date', [$this->start, $this->end])->sum('debit');
+            } else {
+                $buildingD = 0;
+                $buildingC = 0;
+            }
+            if (!$member->loans->isEmpty()) {
+                $cre = 0;
+                $int = 0;
+                $appLoan = $member->loans->whereBetween('approved_on', [$this->start, $this->end])->sum('amount');
+                if ($appLoan) {
+                    $appLoan = $appLoan * 1;
                 } else {
-                    $savingsD = 0;
-                    $savingsC = 0;
-                }
-                if ($member->share) {
-                    $shareC = $member->share->history->whereBetween('date', [$this->start, $this->end])->sum('credit');
-                    $shareD = $member->share->history->whereBetween('date', [$this->start, $this->end])->sum('debit');
-                } else {
-                    $shareD = 0;
-                    $shareC = 0;
-                }
-                if ($member->specialSavings) {
-                    $specialC = $member->specialSavings->history->whereBetween('date', [$this->start, $this->end])->sum('credit');
-                    $specialD = $member->specialSavings->history->whereBetween('date', [$this->start, $this->end])->sum('debit');
-                } else {
-                    $specialD = 0;
-                    $specialC = 0;
-                }
-                if ($member->building) {
-                    $buildingC = $member->building->history->whereBetween('date', [$this->start, $this->end])->sum('credit');
-                    $buildingD = $member->building->history->whereBetween('date', [$this->start, $this->end])->sum('debit');
-                } else {
-                    $buildingD = 0;
-                    $buildingC = 0;
-                }
-                if (!$member->loans->isEmpty()) {
-                    $cre = 0;
-                    $int = 0;
-                    $appLoan = $member->loans->whereBetween('approved_on', [$this->start, $this->end])->sum('amount');
-                    if ($appLoan) {
-                        $appLoan = $appLoan * 1;
-                    } else {
-                        $appLoan = 0;
-                    }
-                    $loan = $member->loans;
-                    if ($loan->count() > 0) {
-                        foreach ($loan as $item) {
-                            $cre = $cre + $item->repayments->whereBetween('date', [$this->start, $this->end])->sum('credit');
-                            $int = $int + $item->repayments->whereBetween('date', [$this->start, $this->end])->sum('interest');
-                        }
-                    }
-                } else {
-                    $cre = 0;
-                    $int = 0;
                     $appLoan = 0;
                 }
-                if (!$member->fines->isEmpty()) {
+                $loan = $member->loans;
+                if ($loan->count() > 0) {
+                    foreach ($loan as $item) {
+                        $cre = $cre + $item->repayments->whereBetween('date', [$this->start, $this->end])->sum('credit');
+                        $int = $int + $item->repayments->whereBetween('date', [$this->start, $this->end])->sum('interest');
+                    }
+                }
+            } else {
+                $cre = 0;
+                $int = 0;
+                $appLoan = 0;
+            }
+            if (!$member->fines->isEmpty()) {
 //                dd($member->fines);
-                    $fines = $member->fines->whereBetween('date', [$this->start, $this->end])->sum('credit');
+                $fines = $member->fines->whereBetween('date', [$this->start, $this->end])->sum('credit');
 //                dd($fines);
-                } else {
-                    $fines = 0;
-                }
-                if (!$member->utilities->isEmpty()) {
-                    $util = $member->utilities->whereBetween('date', [$this->start, $this->end])->sum('amount');
-                } else {
-                    $util = 0;
-                }
+            } else {
+                $fines = 0;
+            }
+            if (!$member->utilities->isEmpty()) {
+                $util = $member->utilities->whereBetween('date', [$this->start, $this->end])->sum('amount');
+            } else {
+                $util = 0;
+            }
 
 
             $member->savingsM = $savingsC - $savingsD;
@@ -148,9 +148,9 @@ class MonthlyReportExport implements FromCollection, WithCustomStartCell, WithHe
             $member->sum = $member->savingsM + $member->shareM +
                 $member->fines + $member->util + $member->buildingM + $member->loanRepay + $member->interest;
         }
-        $filename = 'backup/' . Carbon::parse($this->start)->format('M_Y') . '.sqlite';
+        $filename = 'backup/year_' . $this->year . '.sqlite';
         if (Storage::disk('backup')->exists($filename)) {
-            $old = 'backup/' . Carbon::parse($this->start)->format('M_Y') . '_old.sqlite';
+            $old = 'backup/year_' . $this->year . '_old.sqlite';
             if (Storage::disk('backup')->exists($old)) {
                 Storage::disk('backup')->delete($old);
                 Storage::disk('backup')->move($filename, $old);
@@ -169,13 +169,12 @@ class MonthlyReportExport implements FromCollection, WithCustomStartCell, WithHe
 
     public function map($member): array
     {
+        $this->index += 1;
         return [
-            $member->member_id,
+            $this->index,
             $member->name,
             $member->savingsM,
-            $member->totalSavings,
             $member->shareM,
-            $member->totalShares,
             $member->appLoan,
             $member->loanRepay,
             $member->loanBalance,
@@ -190,10 +189,11 @@ class MonthlyReportExport implements FromCollection, WithCustomStartCell, WithHe
 
     public function headings(): array
     {
+        $year = $this->start->format('Y');
         return [
-            [Str::upper(Carbon::parse($this->start)->format('F, Y')) . ' MONTHLY REPORT'],
-            ['#', 'NAME', 'SAVINGS', 'TOTAL SAVINGS', 'SHARES', 'TOTAL SHARES',
-                'APPROVED LOAN', 'LOAN REPAYMENT', 'LOAN BALANCE', 'LOAN INTEREST', 'UTILITY', 'FINE', 'BUILDING', 'TOTAL'],
+            [Str::upper("YEAR $year REPORT")],
+            ['#', 'NAME', 'SAVINGS', 'SHARES', 'APPROVED LOAN', 'LOAN REPAYMENT',
+                'LOAN BALANCE', 'LOAN INTEREST', 'UTILITY', 'FINE', 'BUILDING', 'TOTAL'],
         ];
     }
 
@@ -230,15 +230,15 @@ class MonthlyReportExport implements FromCollection, WithCustomStartCell, WithHe
             ],
             'font' => ['size' => 14]
         ];
-        $sheet->mergeCells('B2:O2')->getStyle('B2:O2')
+        $sheet->mergeCells('B2:M2')->getStyle('B2:M2')
             ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('B2:O2')
+        $sheet->getStyle('B2:M2')
             ->applyFromArray($styleArray);
-        $sheet->getStyle('B3:O3')
+        $sheet->getStyle('B3:M3')
             ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('B3:O3')
+        $sheet->getStyle('B3:M3')
             ->applyFromArray($styleArray);
-        $sheet->getStyle('B4:O' . $this->members->count() + 3)
+        $sheet->getStyle('B4:M' . $this->members->count() + 3)
             ->applyFromArray($styleArray2);
 
         $styleArray3 = [
@@ -256,8 +256,8 @@ class MonthlyReportExport implements FromCollection, WithCustomStartCell, WithHe
         $row = $this->members->count() + 4;
         $rowData = $this->members->count() + 3;
 
-        $totalSavings = $this->members->sum('totalSavings');
-        $totalShares = $this->members->sum('totalShares');
+//        $totalSavings = $this->members->sum('totalSavings');
+//        $totalShares = $this->members->sum('totalShares');
         $appLoan = $this->members->sum('appLoan');
         $loanRepay = $this->members->sum('loanRepay');
         $loanBalance = $this->members->sum('loanBalance');
@@ -274,22 +274,22 @@ class MonthlyReportExport implements FromCollection, WithCustomStartCell, WithHe
             ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $sheet->setCellValue('D' . $row, $savings);
-        $sheet->setCellValue('E' . $row, $totalSavings);
-        $sheet->setCellValue('F' . $row, $share);
-        $sheet->setCellValue('G' . $row, $totalShares);
-        $sheet->setCellValue('H' . $row, $appLoan);
-        $sheet->setCellValue('I' . $row, $loanRepay);
-        $sheet->setCellValue('J' . $row, $loanBalance);
-        $sheet->setCellValue('K' . $row, $interest);
-        $sheet->setCellValue('L' . $row, $util);
-        $sheet->setCellValue('M' . $row, $fines);
-        $sheet->setCellValue('N' . $row, $building);
-        $sheet->setCellValue('O' . $row, $sum);
+//        $sheet->setCellValue('E' . $row, $totalSavings);
+        $sheet->setCellValue('E' . $row, $share);
+//        $sheet->setCellValue('G' . $row, $totalShares);
+        $sheet->setCellValue('F' . $row, $appLoan);
+        $sheet->setCellValue('G' . $row, $loanRepay);
+        $sheet->setCellValue('H' . $row, $loanBalance);
+        $sheet->setCellValue('I' . $row, $interest);
+        $sheet->setCellValue('J' . $row, $util);
+        $sheet->setCellValue('K' . $row, $fines);
+        $sheet->setCellValue('L' . $row, $building);
+        $sheet->setCellValue('M' . $row, $sum);
 
-        $sheet->getStyle("B$row:O$row")
+        $sheet->getStyle("B$row:M$row")
             ->applyFromArray($styleArray3);
 
-        $sheet->getStyle("B$row:O$row")
+        $sheet->getStyle("B$row:M$row")
             ->getNumberFormat()
             ->setFormatCode(NumberFormat::FORMAT_CURRENCY_NGN_INTEGER);
     }

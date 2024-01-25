@@ -23,6 +23,6 @@ Route::middleware(['auth:sanctum'])->group(function() {
     })->name('member.manage');
 
     Route::get('/manage/{member}', function (\App\Models\Member $member) {
-        return view('filament.resources.member-resource.pages.manage-member', ['member' => $member]);
+        return view('filament.resources.member-resource.pages.view-member', ['member' => $member]);
     });
 });

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MemberResource\RelationManagers;
 
+use App\Models\ShareHistory;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -13,6 +14,11 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class ShareRecordRelationManager extends RelationManager
 {
     protected static string $relationship = 'shareRecord';
+
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
 
     public function form(Form $form): Form
     {
@@ -29,7 +35,7 @@ class ShareRecordRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('date')
             ->columns([
-                Tables\Columns\TextColumn::make('date')->date()->sortable(),
+                Tables\Columns\TextColumn::make('date')->date(),
                 Tables\Columns\TextColumn::make('credit')->numeric()->prefix(config('app.currency')),
                 Tables\Columns\TextColumn::make('debit')->numeric()->prefix(config('app.currency')),
                 Tables\Columns\TextColumn::make('balance')->numeric()->prefix(config('app.currency')),
@@ -40,11 +46,26 @@ class ShareRecordRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+//                Tables\Actions\CreateAction::make(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+//                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function (ShareHistory $record) {
+                        $cre = $record->credit;
+                        $deb = $record->debit;
+                        $share = $record->share;
+                        $bal = $share->balance;
+                        if ($cre) {
+                            $share->update([
+                                'balance' => $bal - $cre
+                            ]);
+                        } else {
+                            $share->update([
+                                'balance' => $bal + $deb
+                            ]);
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

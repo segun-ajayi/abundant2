@@ -92,7 +92,14 @@ class RegisterUser extends Page
 
         $data['name'] = $member->name;
         $data['email'] = $email;
-        User::create($data);
+
+        User::create([
+            'name' => $data['name'],
+            'role' => $data['role'],
+            'email' => $data['email'],
+            'password' => $data['password'],
+            'member_id' => $data['member_id'],
+        ]);
 
         Notification::make()
             ->title('Exco created successfully!')

@@ -2,12 +2,14 @@
 
 namespace App\Filament\Resources\DividendResource\Pages;
 
+use App\Exports\DividendReportExport;
 use App\Filament\Resources\DividendResource;
 use App\Models\Dividend;
 use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 use JetBrains\PhpStorm\NoReturn;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ViewDividend extends ViewRecord
 {
@@ -30,6 +32,21 @@ class ViewDividend extends ViewRecord
                 ->visible(function (Dividend $record) {
                     return $record->reports->where('status', true)->count();
                 }),
+            Actions\ActionGroup::make([
+                Actions\Action::make('download1')
+                    ->label('Excel')
+                    ->action(fn (Dividend $record) => $this->download($record))
+                    ->color('info')
+                    ->icon('heroicon-o-table-cells'),
+                Actions\Action::make('download2')
+                    ->label('PDF')
+                    ->action(fn (Dividend $record) => $this->downloadPDF($record))
+                    ->color('danger')
+                    ->icon('heroicon-o-document'),
+            ])
+                ->icon('heroicon-o-arrow-down-on-square-stack')
+                ->button()
+                ->label('Download')
         ];
     }
 
@@ -76,5 +93,18 @@ class ViewDividend extends ViewRecord
             'paid' => 0,
             'unpaid' => $unpaid + $paid
         ]);
+    }
+
+    private function download(Dividend $record)
+    {
+        return Excel::download(new DividendReportExport($record), $record->year . '_dividend_report.xlsx');
+
+    }
+
+    private function downloadPDF(Dividend $record)
+    {
+
+        return Excel::download(new DividendReportExport($record), $record->year . '_dividend_report.pdf', \Maatwebsite\Excel\Excel::MPDF);
+
     }
 }
